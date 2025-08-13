@@ -1,0 +1,1 @@
+// Nomes string os eventos (centralizados, padronizados)

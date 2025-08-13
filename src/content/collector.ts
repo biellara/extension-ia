@@ -1,0 +1,1 @@
+// Instala o MutationObserver no contêiner das mensagens agrupa, alterações (debounce ~350ms) e envia "novas mensagens" em lotes

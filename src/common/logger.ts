@@ -1,0 +1,1 @@
+// log não sensível (contagens, tempos, estados) — nunca mensagens de clientes.

@@ -1,0 +1,1 @@
+// Irá concentrar handlers de eventos do navegador (instalação, mudanças de aba, etc) Mantém o BG (Background) limpo.

@@ -1,0 +1,1 @@
+// gera o digest (hash) com os campos combinados para dedupe.

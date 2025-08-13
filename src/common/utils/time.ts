@@ -1,0 +1,1 @@
+// converter HH:mm + data do grupo → ISO completo; comparar datas; agora().

@@ -1,0 +1,1 @@
+// números que não mudam toda hora (debounce=350, lote=100, bloco=200).

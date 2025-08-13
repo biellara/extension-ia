@@ -1,0 +1,1 @@
+// Observa mudanças no cabeçalho/contêiner raiz e avisa o BG que a conversa mudou (SPA)

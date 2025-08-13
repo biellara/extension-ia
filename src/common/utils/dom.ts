@@ -1,0 +1,1 @@
+// pequenos auxiliares (buscar nó com fallback, safe text content).

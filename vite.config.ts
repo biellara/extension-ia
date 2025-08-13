@@ -1,0 +1,1 @@
+// Diz ao Vite como empactar os alvos (background, content, popup, options)

@@ -1,0 +1,1 @@
+// Regras de retenção/limpeza (7dias / 2000msgs, descartar blocos antigos)

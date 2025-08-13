@@ -1,0 +1,1 @@
+// Helpers para enviar/receber mensagens com segurança (sempre incluindo tabId + conversationKey)
