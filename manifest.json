@@ -9,18 +9,21 @@
     ],
 
     "background": {
-        "service_worker": "background/index.js",
+        "service_worker": "/src/background/index.js",
         "type": "module"
     },
     "action": {
-        "default_popup": "popup/index.html",
+        "default_popup": "/src/popup/index.html",
         "default_title": "Echo"
     },
 
-    "options_page": "options.html",
+    "options_page": "/src/options/index.html",
 
     "icons": {
-        "48": "icon.png"
+        "01": "public/icon01.png",
+        "02": "public/icon02.png",
+        "03": "public/icon03.png"
+
     },
     
     "host_permissions": [

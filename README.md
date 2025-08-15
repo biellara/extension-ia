@@ -1,4 +1,3 @@
 # extension-ia
-Extension
-Iniciando uma nova extensão!
-New Extension
+
+An extension designed to assist with online customer support using artificial intelligence (AI).
