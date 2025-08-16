@@ -1,48 +1,7 @@
 {
-    "manifest_version": 3,
-    "name": "Echo",
-    "version": "1.0",
-    "description": "An extension designed to assist with online customer support using artificial intelligence (AI).",
-    
-    "permissions": [
-        "storage"
-    ],
-
-    "background": {
-        "service_worker": "/src/background/index.js",
-        "type": "module"
-    },
-    "action": {
-        "default_popup": "/src/popup/index.html",
-        "default_title": "Echo"
-    },
-
-    "options_page": "/src/options/index.html",
-
-    "icons": {
-        "01": "public/icon01.png",
-        "02": "public/icon02.png",
-        "03": "public/icon03.png"
-
-    },
-    
+    "name": "Echo (DEV)",
     "host_permissions": [
-        "https://erp.iredinternet.com.br/*"
-    ],
-
-    "content_scripts":[
-
-        {
-            "matches":[
-                "https://erp.iredinternet.com.br/*"
-            ],
-            
-            "js": [
-                "content/collector.js"
-            ],
-
-            "run_at": "document_end",
-            "all_frames": false
-        }
+        "https://erp.iredinternet.com.br/*",
+        "http://localhost/*"
     ]
 }

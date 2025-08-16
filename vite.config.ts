@@ -1,23 +1,32 @@
-// Diz ao Vite como empactar os alvos (background, content, popup, options)
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import webExtension from "vite-plugin-web-extension";
+import deepmerge from "deepmerge"; 
 
-export default defineConfig({
-  plugins: [
-    react(),
-    webExtension({
+import baseManifest from "./src/manifest.base.json";
+import devManifest from "./manifest.json"; 
 
-      manifest: "manifest.json",
 
-    })
-  ],
-  build: {
-    outDir: "dist",
-    target: "es2022",
-    sourcemap: true,
-    minify: false
-  },
-  publicDir: "public"
+export default defineConfig(({ mode }) => {
+  const isDev = mode === 'development';
+
+  const envManifest = isDev ? devManifest : {};
+
+  return {
+    plugins: [
+      react(),
+      webExtension({
+        manifest: () => {
+          return deepmerge(baseManifest, envManifest);
+        },
+      }),
+    ],
+    build: {
+      outDir: "dist",
+      target: "es2022",
+      sourcemap: true,
+      minify: false,
+    },
+    publicDir: "public",
+  };
 });
