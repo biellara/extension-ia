@@ -1,7 +1,4 @@
 {
     "name": "Echo (DEV)",
-    "host_permissions": [
-        "https://erp.iredinternet.com.br/*",
-        "http://localhost/*"
-    ]
+    "host_permissions": []
 }
