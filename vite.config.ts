@@ -1,32 +1,26 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import webExtension from "vite-plugin-web-extension";
-import deepmerge from "deepmerge"; 
+import path from "path";
 
-import baseManifest from "./src/manifest.base.json";
-import devManifest from "./manifest.json"; 
-
-
-export default defineConfig(({ mode }) => {
-  const isDev = mode === 'development';
-
-  const envManifest = isDev ? devManifest : {};
-
-  return {
-    plugins: [
-      react(),
-      webExtension({
-        manifest: () => {
-          return deepmerge(baseManifest, envManifest);
-        },
-      }),
-    ],
-    build: {
-      outDir: "dist",
-      target: "es2022",
-      sourcemap: true,
-      minify: false,
+export default defineConfig({
+  resolve: {
+    alias: {
+      "~": path.resolve(__dirname, "./src"),
     },
-    publicDir: "public",
-  };
+  },
+  plugins: [
+    react(),
+    webExtension({
+      manifest: "src/manifest.json",
+    }),
+  ],
+  publicDir: "public",
+  build: {
+    outDir: "dist",
+    target: "es2022",
+    sourcemap: true,
+    minify: false,
+    emptyOutDir: true,
+  },
 });

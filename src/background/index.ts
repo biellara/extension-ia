@@ -1,65 +1,76 @@
 // Aqui registra ouvintes de mensagens e coordena fluxos: 
 // inicia/para observação na aba, pede snapshots, recebe lots do content, aplica dedupe/retention, atualiza status para o popup
+import { MSG_CS_CONVERSATION_CHANGE, MSG_CS_SNAPSHOT_RESULT, MSG_BG_REQUEST_SNAPSHOT, MSG_CS_NEW_MESSAGES } from "../common/messaging/channels";
 
-import { 
-  MSG_GET_STATUS, 
-  MSG_BG_STATUS,
-  MSG_CS_CONVERSATION_CHANGE
-} from "../common/messaging/channels";
+console.log("[BG] Service Worker iniciado.");
 
-type BgState = "idle" | "observing" | "paused";
-type BgStatus = {
-  state: BgState;
-  paused: boolean;
-  conversationKey?: string;
-  messageCount?: number;
-  latestTimestamp?: string;
-  retention?: { days: number; limitPerConversation: number };
-};
-
-const DEFAULT_STATUS: BgStatus = {
-  state: "idle",
-  paused: false,
+let activeConversation = {
+  tabId: 0,
+  conversationKey: "",
   messageCount: 0,
-  retention: { days: 7, limitPerConversation: 2000 },
 };
 
-let currentStatus: BgStatus = { ...DEFAULT_STATUS };
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const { type, payload } = message;
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  console.log("[BG] onMessage:", msg, "from tab:", sender.tab?.id);
-  if (msg?.type === MSG_GET_STATUS) {
-    setTimeout(() => {
-      try {
-        sendResponse({ type: MSG_BG_STATUS, payload: currentStatus });
-      } catch (e) {
-        console.warn("[BG] sendResponse error:", e);
-      }
-    }, 0);
-    return true;
-
-  }
-
-  if (msg?.type === MSG_CS_CONVERSATION_CHANGE) {
-    console.log("[BG] conversation change message received:", msg.payload);
-    const key = msg?.payload?.conversationKey as string | undefined;
-      if (!key) {
-        currentStatus.state = "observing";
-        currentStatus.conversationKey = key;
-        currentStatus.messageCount = 0;
-        console.log("[BG] conversation set:", key, "from tab:", sender.tab?.id);
-  }
-
-  try {
-      sendResponse({ ok: true});
-    } catch {}
+  if (type === MSG_CS_CONVERSATION_CHANGE) {
+    console.log("[BG] Mudança de conversa detetada:", payload.conversationKey);
+    activeConversation = {
+      tabId: sender.tab?.id || 0,
+      conversationKey: payload.conversationKey,
+      messageCount: 0,
+    };
+    
+    if (activeConversation.tabId && activeConversation.conversationKey) {
+      console.log("[BG] Pedindo snapshot para o CS:", activeConversation.conversationKey);
+      chrome.tabs.sendMessage(activeConversation.tabId, {
+        type: MSG_BG_REQUEST_SNAPSHOT,
+        payload: { conversationKey: activeConversation.conversationKey },
+      });
+    }
+    sendResponse({ ok: true });
     return true;
   }
-  return false;
+
+  if (type === MSG_CS_SNAPSHOT_RESULT) {
+    console.log(`[BG] Recebido snapshot com ${payload.messages.length} mensagens para`, payload.conversationKey);
+    const storageKey = `conv:${payload.conversationKey}:chunk:0001`;
+    chrome.storage.local.set({ [storageKey]: payload.messages }, () => {
+      console.log("[BG] Snapshot salvo no storage com a chave:", storageKey);
+    });
+    activeConversation.messageCount = payload.messages.length;
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (type === MSG_CS_NEW_MESSAGES) {
+    console.log(`[BG] Recebidas ${payload.messages.length} novas mensagens para`, payload.conversationKey);
+    const storageKey = `conv:${payload.conversationKey}:chunk:0001`;
+
+    // Busca o chunk existente, adiciona as novas mensagens e salva de volta
+    chrome.storage.local.get(storageKey, (result) => {
+      const existingMessages = result[storageKey] || [];
+      const updatedMessages = [...existingMessages, ...payload.messages];
+      
+      chrome.storage.local.set({ [storageKey]: updatedMessages }, () => {
+        console.log(`[BG] Armazenamento atualizado. Total de mensagens: ${updatedMessages.length}`);
+      });
+
+      activeConversation.messageCount = updatedMessages.length;
+    });
+
+    sendResponse({ ok: true });
+    return true;
+  }
 });
 
-  chrome.runtime.onInstalled.addListener((d) => {
-    console.log("[BG] Extension installed", d);
-    currentStatus = { ...DEFAULT_STATUS };
-  
+// ... (o resto do código, como o onConnect, permanece o mesmo) ...
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name === "popup") {
+    port.onMessage.addListener(msg => {
+      if (msg.type === "POPUP_GET_STATE") {
+        port.postMessage({ state: activeConversation });
+      }
+    });
+  }
 });

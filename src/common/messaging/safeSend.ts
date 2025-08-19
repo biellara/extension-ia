@@ -1,17 +1,23 @@
-// src/common/messaging/safeSend.ts
-export function safeSendMessage(message: any): Promise<any | undefined> {
+// Define um tipo genérico para as mensagens da extensão
+export type Message = {
+  type: string;
+  payload?: any;
+};
+
+export function safeSendMessage(message: Message): Promise<any | undefined> {
   return new Promise((resolve) => {
-    // se a extensão foi invalidada/recarregada, chrome.runtime.id some
-    // @ts-ignore
-    if (!chrome?.runtime?.id) return resolve(undefined);
+    // Se a extensão foi invalidada/recarregada, chrome.runtime.id deixa de existir.
+    if (!chrome?.runtime?.id) {
+      return resolve(undefined);
+    }
+    
     try {
-      chrome.runtime.sendMessage(message, (resp) => {
-        // tocar lastError evita throw em dev
-        // @ts-ignore
+      chrome.runtime.sendMessage(message, (response) => {
         const _ = chrome.runtime.lastError;
-        resolve(resp);
+        resolve(response);
       });
-    } catch {
+    } catch (error) {
+      console.warn("safeSendMessage falhou:", error);
       resolve(undefined);
     }
   });
