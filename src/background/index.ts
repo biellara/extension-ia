@@ -1,70 +1,52 @@
-// Aqui registra ouvintes de mensagens e coordena fluxos: 
-// inicia/para observação na aba, pede snapshots, recebe lots do content, aplica dedupe/retention, atualiza status para o popup
 import { MSG_CS_CONVERSATION_CHANGE, MSG_CS_SNAPSHOT_RESULT, MSG_BG_REQUEST_SNAPSHOT, MSG_CS_NEW_MESSAGES } from "../common/messaging/channels";
+import { processMessageBatch } from "../common/storage/storage";
+import { ConversationMeta } from "../common/types/models";
 
 console.log("[BG] Service Worker iniciado.");
 
-let activeConversation = {
-  tabId: 0,
-  conversationKey: "",
-  messageCount: 0,
-};
+let activeConversation: Partial<ConversationMeta> & { tabId?: number } = {};
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
+  const tabId = sender.tab?.id;
 
   if (type === MSG_CS_CONVERSATION_CHANGE) {
     console.log("[BG] Mudança de conversa detetada:", payload.conversationKey);
     activeConversation = {
-      tabId: sender.tab?.id || 0,
+      tabId: tabId,
       conversationKey: payload.conversationKey,
-      messageCount: 0,
     };
     
-    if (activeConversation.tabId && activeConversation.conversationKey) {
-      console.log("[BG] Pedindo snapshot para o CS:", activeConversation.conversationKey);
-      chrome.tabs.sendMessage(activeConversation.tabId, {
+    if (tabId && payload.conversationKey) {
+      chrome.tabs.sendMessage(tabId, {
         type: MSG_BG_REQUEST_SNAPSHOT,
-        payload: { conversationKey: activeConversation.conversationKey },
+        payload: { conversationKey: payload.conversationKey },
       });
     }
     sendResponse({ ok: true });
     return true;
   }
 
-  if (type === MSG_CS_SNAPSHOT_RESULT) {
-    console.log(`[BG] Recebido snapshot com ${payload.messages.length} mensagens para`, payload.conversationKey);
-    const storageKey = `conv:${payload.conversationKey}:chunk:0001`;
-    chrome.storage.local.set({ [storageKey]: payload.messages }, () => {
-      console.log("[BG] Snapshot salvo no storage com a chave:", storageKey);
-    });
-    activeConversation.messageCount = payload.messages.length;
-    sendResponse({ ok: true });
-    return true;
-  }
+  // Unificamos a lógica para ambos os tipos de mensagem
+  if (type === MSG_CS_SNAPSHOT_RESULT || type === MSG_CS_NEW_MESSAGES) {
+    if (type === MSG_CS_SNAPSHOT_RESULT) console.log(`[BG] Recebido snapshot com ${payload.messages.length} mensagens.`);
+    if (type === MSG_CS_NEW_MESSAGES) console.log(`[BG] Recebidas ${payload.messages.length} novas mensagens.`);
 
-  if (type === MSG_CS_NEW_MESSAGES) {
-    console.log(`[BG] Recebidas ${payload.messages.length} novas mensagens para`, payload.conversationKey);
-    const storageKey = `conv:${payload.conversationKey}:chunk:0001`;
-
-    // Busca o chunk existente, adiciona as novas mensagens e salva de volta
-    chrome.storage.local.get(storageKey, (result) => {
-      const existingMessages = result[storageKey] || [];
-      const updatedMessages = [...existingMessages, ...payload.messages];
-      
-      chrome.storage.local.set({ [storageKey]: updatedMessages }, () => {
-        console.log(`[BG] Armazenamento atualizado. Total de mensagens: ${updatedMessages.length}`);
+    processMessageBatch(payload.conversationKey, payload.messages)
+      .then(updatedMeta => {
+        // Atualiza o estado da conversa ativa com os metadados mais recentes
+        activeConversation = { ...activeConversation, ...updatedMeta };
+        sendResponse({ ok: true });
+      })
+      .catch(error => {
+        console.error("[BG] Erro ao processar lote de mensagens:", error);
+        sendResponse({ ok: false });
       });
-
-      activeConversation.messageCount = updatedMessages.length;
-    });
-
-    sendResponse({ ok: true });
-    return true;
+      
+    return true; // Indica que a resposta será assíncrona
   }
 });
 
-// ... (o resto do código, como o onConnect, permanece o mesmo) ...
 chrome.runtime.onConnect.addListener(port => {
   if (port.name === "popup") {
     port.onMessage.addListener(msg => {
