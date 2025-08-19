@@ -54,7 +54,7 @@ useEffect(() => {
             {status.conversationKey && <li>conversationKey: <b>{status.conversationKey}</b></li>}
             <li>messageCount: {status.messageCount ?? 0}</li>
             {status.latestTimestamp && <li>latest: {status.latestTimestamp}</li>}
-            <li>retentiono: {status.retention?.days}d / {status.retention?.limitPerConversation} msgs</li>
+            <li>retention: {status.retention?.days}d / {status.retention?.limitPerConversation} msgs</li>
           </ul>
 
         )}
