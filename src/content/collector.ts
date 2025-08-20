@@ -8,15 +8,13 @@ declare global {
 
 export {};
 
-if (window.__CS_INITED__) {
-} else {
+if (!window.__CS_INITED__) {
   window.__CS_INITED__ = true;
   console.log("[CS] init");
-  import("./conversation").then((m) => m.startConversationWatcher());
+
+  import("./conversation").then((m) => {
+    chrome.runtime.onMessage.addListener(m.handleBackgroundMessages);
+
+    m.startConversationWatcher();
+  });
 }
-
-import("./conversation").then((m) => {
-  chrome.runtime.onMessage.addListener(m.handleBackgroundMessages);
-
-  m.startConversationWatcher();
-});

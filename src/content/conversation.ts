@@ -188,6 +188,7 @@ function waitForElement(selector: string, callback: () => void) {
   }, 200);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function handleBackgroundMessages(message: Message, _sender: chrome.runtime.MessageSender, _sendResponse: (response?: unknown) => void) {
   if (message.type === MSG_BG_REQUEST_SNAPSHOT) {
     const payload = message.payload as { conversationKey: string };
