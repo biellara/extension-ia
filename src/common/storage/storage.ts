@@ -10,7 +10,7 @@ async function loadData<T>(key: string, defaultValue: T): Promise<T> {
   return result[key] || defaultValue;
 }
 
-async function saveData(key: string, value: any): Promise<void> {
+async function saveData(key: string, value: unknown): Promise<void> {
   return chrome.storage.local.set({ [key]: value });
 }
 
@@ -27,7 +27,14 @@ function toLocalISO(timeStr: string): string {
     return now.toISOString();
 }
 
-export async function processMessageBatch(conversationKey: string, messages: any[]): Promise<ConversationMeta> {
+type IncomingMessage = {
+  timestamp: string; // Ex: "14:30"
+  digest: string; // Hash único da mensagem
+  [key: string]: unknown; // Outros campos da mensagem
+
+};
+
+export async function processMessageBatch(conversationKey: string, messages: IncomingMessage[]): Promise<ConversationMeta> {
   const metaKey = `conv:${conversationKey}:meta`;
   const digestsKey = `conv:${conversationKey}:digests`;
 
@@ -54,14 +61,23 @@ export async function processMessageBatch(conversationKey: string, messages: any
   let chunkKey = `conv:${conversationKey}:chunk:${String(meta.chunks).padStart(4, '0')}`;
   let currentChunk = await loadData<StoredMessage[]>(chunkKey, []);
   
-  let remainingMessages = [...newMessages];
+  const remainingMessages = [...newMessages];
 
-  while(remainingMessages.length > 0) {
-    const spaceInChunk = CHUNK_SIZE - currentChunk.length;
-    const messagesToAppend = remainingMessages.splice(0, spaceInChunk);
-    currentChunk.push(...messagesToAppend);
-    
-    await saveData(chunkKey, currentChunk);
+while (remainingMessages.length > 0) {
+      const spaceInChunk = CHUNK_SIZE - currentChunk.length;
+      const raw = remainingMessages.splice(0, spaceInChunk);
+
+      const messagesToAppend: StoredMessage[] = raw.map(m => ({
+        timestampISO: (m as any).timestampISO,
+        timestamp: (m as any).timestamp,
+        digest: (m as any).digest,
+        authorType: typeof (m as any).authorType === "string" ? (m as any).authorType : "unknown",
+        authorLabel: typeof (m as any).authorLabel === "string" ? (m as any).authorLabel : "",
+        textRaw: typeof (m as any).textRaw === "string" ? (m as any).textRaw : "",
+      }));
+
+      currentChunk.push(...messagesToAppend);
+      await saveData(chunkKey, currentChunk);
 
     if (remainingMessages.length > 0) {
       meta.chunks += 1;
@@ -83,8 +99,8 @@ export async function processMessageBatch(conversationKey: string, messages: any
 }
 
 async function applyRetention(conversationKey: string, meta: ConversationMeta): Promise<ConversationMeta> {
+  const chunksToDelete: string[] = [];
   let totalMessages = meta.messageCount;
-  let chunksToDelete: string[] = [];
   let messagesDeletedCount = 0;
 
   // Retenção por volume

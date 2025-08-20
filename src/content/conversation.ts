@@ -188,9 +188,10 @@ function waitForElement(selector: string, callback: () => void) {
   }, 200);
 }
 
-export function handleBackgroundMessages(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
+export function handleBackgroundMessages(message: Message, _sender: chrome.runtime.MessageSender, _sendResponse: (response?: unknown) => void) {
   if (message.type === MSG_BG_REQUEST_SNAPSHOT) {
-    console.log("[CS] Recebido pedido de snapshot do BG:", message.payload.conversationKey);
+    const payload = message.payload as { conversationKey: string };
+    console.log("[CS] Recebido pedido de snapshot do BG:", payload.conversationKey);
     
     // Modificado para usar a função de espera
     waitForElement(selectors.messageList, () => {
@@ -199,7 +200,7 @@ export function handleBackgroundMessages(message: Message, sender: chrome.runtim
       safeSendMessage({
         type: MSG_CS_SNAPSHOT_RESULT,
         payload: {
-          conversationKey: message.payload.conversationKey,
+          conversationKey: payload.conversationKey,
           messages,
         },
       });

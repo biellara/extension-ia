@@ -1,9 +1,9 @@
 // Tela simples com:
 // status (conversa ativa, mensagens, retenção, anonimização), botões: Pausar/Retomar e limpar conversa
 
-import React, { useEffect, useInsertionEffect, useState} from "react";
+import  { useEffect,  useState} from "react";
 import { MSG_BG_STATUS, MSG_GET_STATUS } from "../common/messaging/channels";
-import { stat } from "fs";
+
 
 type BgState = "idle" | "observing" | "paused";
 type BgStatus = {
