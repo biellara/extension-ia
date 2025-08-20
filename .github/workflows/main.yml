@@ -1,0 +1,41 @@
+name: Build and Package Extension
+
+on:
+  push:
+    branches: [ "main" ]
+  
+  workflow_dispatch:
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run linter
+        run: npm run lint --if-present
+
+      - name: Build Extension
+        run: npm run build
+
+      - name: Package Extension
+        run: |
+          cd dist
+          zip -r ../extension.zip .
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: echo
+          path: extension.zip
