@@ -17,7 +17,7 @@ type MessageData = {
 };
 
 let messageObserver: MutationObserver | null = null;
-let processedDigests = new Set<string>();
+const processedDigests = new Set<string>();
 
 // ... (Funções de leitura do cabeçalho permanecem as mesmas) ...
 function getHeaderEl(): Element | null {
