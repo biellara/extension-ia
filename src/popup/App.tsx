@@ -3,7 +3,7 @@
 
 import  { useEffect,  useState} from "react";
 import { MSG_BG_STATUS, MSG_GET_STATUS } from "../common/messaging/channels";
-
+import React from "react";
 
 type BgState = "idle" | "observing" | "paused";
 type BgStatus = {
