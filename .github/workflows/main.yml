@@ -2,7 +2,7 @@ name: Build and Package Extension
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   
   workflow_dispatch:
 
