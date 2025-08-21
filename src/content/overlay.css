@@ -1,0 +1,113 @@
+/* Estilos para o overlay flutuante no ERP */
+.echo-overlay {
+  position: fixed;
+  z-index: 2147483646; /* Garante que fique sobre a maioria dos elementos */
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  width: 280px;
+  color: #333;
+  font-size: 14px;
+  transition: all 0.2s ease-in-out;
+}
+
+.echo-overlay.minimized {
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.echo-overlay-header {
+  padding: 8px 12px;
+  background-color: #f7f7f7;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: grab;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.echo-overlay-header:active {
+  cursor: grabbing;
+}
+
+.echo-overlay-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.echo-status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ccc; /* cinza (idle) */
+}
+
+.echo-status-indicator.observing { background-color: #28a745; } /* verde */
+.echo-status-indicator.paused { background-color: #ffc107; } /* âmbar */
+
+.echo-overlay-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.echo-overlay-status-line, .echo-overlay-conversation-line {
+  font-size: 13px;
+  color: #555;
+}
+
+.echo-overlay-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.echo-overlay-button {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.echo-overlay-button:hover {
+  background: #e0e0e0;
+}
+
+.echo-overlay-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.echo-overlay-switch input {
+  margin: 0;
+}
+
+.echo-overlay-footer {
+  padding: 8px 12px;
+  text-align: right;
+}
+
+.echo-overlay-footer a {
+  font-size: 12px;
+  color: #007bff;
+  text-decoration: none;
+}
+.echo-overlay-footer a:hover {
+  text-decoration: underline;
+}

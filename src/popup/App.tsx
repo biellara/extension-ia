@@ -1,65 +1,76 @@
 // Tela simples com:
 // status (conversa ativa, mensagens, retenção, anonimização), botões: Pausar/Retomar e limpar conversa
 
-import  { useEffect,  useState} from "react";
-import { MSG_BG_STATUS, MSG_GET_STATUS } from "../common/messaging/channels";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { MSG_BG_STATUS, MSG_GET_STATUS, POPUP_TOGGLE_PAUSE, CS_SHOW_OVERLAY } from "../common/messaging/channels";
+import { safeSendMessage } from "../common/messaging/safeSend";
 
-type BgState = "idle" | "observing" | "paused";
 type BgStatus = {
-    state: BgState;
-    paused: boolean;
-    conversationKey?: string;
-    messageCount?: number;
-    latestTimestamp?: string;
-    retention?: {days: number, limitPerConversation: number};
+  state: 'idle' | 'observing' | 'paused';
+  paused: boolean;
+  conversationKey?: string;
 };
 
 export default function App() {
   const [status, setStatus] = useState<BgStatus | null>(null);
-  const [error, setError] = useState<string | null>(null); 
+  const [tabId, setTabId] = useState<number | null>(null);
 
-useEffect(() => {
-  function askStatus(retry = 0) {
-    chrome.runtime.sendMessage({ type: MSG_GET_STATUS }, (response) => {
-      const err = chrome.runtime.lastError;
-      if (err) {
-        if (err.message?.includes("message port closed") && retry < 1) {
-          setTimeout(() => askStatus(retry + 1), 150);
-          return;
-        }
-        setError(err.message || "Erro desconhecido");
-        return;
-      }
-      if (response?.type === MSG_BG_STATUS && response.payload) {
-        setStatus(response.payload as BgStatus);
-      } else {
-        setError("Resposta inesperada do background");
+  useEffect(() => {
+    // Descobre a aba ativa para enviar mensagens direcionadas
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        setTabId(tabs[0].id);
+        // Pede o status inicial para a aba ativa
+        chrome.runtime.sendMessage({ type: MSG_GET_STATUS }, (response) => {
+          if (response?.type === MSG_BG_STATUS) {
+            setStatus(response.payload);
+          }
+        });
       }
     });
-  }
-  askStatus();
-}, []);
-    return (
-      <div style={{ padding: 12, minWidth: 260, fontFamily: "system-ui, Arial"}}>
-        <h1 style={{ fontSize: 16, margin: 0 }}>Status</h1>
 
-        {error && <p style={{color: "red"}}>Error: {error}</p>}
-        {!status && !error && <p>Loading...</p>}
+    // Ouve por atualizações de status do background
+    const listener = (message: any) => {
+      if (message.type === MSG_BG_STATUS) {
+        setStatus(message.payload);
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, []);
 
-        {status && (
-          <ul style={{ paddingLeft: 16, margin: "8px 0"}}>
-            <li>state: <b>{status.state}</b></li>
-            <li>paused: <b>{String(status.paused)}</b></li>
-            {status.conversationKey && <li>conversationKey: <b>{status.conversationKey}</b></li>}
-            <li>messageCount: {status.messageCount ?? 0}</li>
-            {status.latestTimestamp && <li>latest: {status.latestTimestamp}</li>}
-            <li>retention: {status.retention?.days}d / {status.retention?.limitPerConversation} msgs</li>
-          </ul>
+  const handleTogglePause = () => {
+    if (tabId) {
+      safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
+    }
+  };
 
-        )}
-      </div>
+  const handleShowOverlay = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (tabId) {
+      // Envia mensagem para o content script da aba ativa
+      chrome.tabs.sendMessage(tabId, { type: CS_SHOW_OVERLAY });
+      window.close(); // Fecha o popup
+    }
+  };
 
-    );
-  }
-// Fim da tela simples com status e botões
+  return (
+    <div style={{ padding: 16, minWidth: 250, fontFamily: "system-ui, sans-serif" }}>
+      <h1 style={{ fontSize: 16, margin: "0 0 10px 0" }}>Echo Status</h1>
+      {status ? (
+        <div>
+          <p><b>Estado:</b> {status.state}</p>
+          <p><b>Conversa:</b> {status.conversationKey?.split('#')[1] || 'Nenhuma'}</p>
+          <button onClick={handleTogglePause} style={{ width: '100%', padding: '8px', marginBottom: '10px' }}>
+            {status.paused ? 'Retomar Captura' : 'Pausar Captura'}
+          </button>
+          <a href="#" onClick={handleShowOverlay} style={{ fontSize: 13 }}>
+            Abrir overlay na página
+          </a>
+        </div>
+      ) : (
+        <p>Carregando...</p>
+      )}
+    </div>
+  );
+}

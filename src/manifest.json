@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "An extension designed to assist with online customer support using AI.",
 
-  "permissions": ["storage"],
+  "permissions": ["storage", "contextMenus"],
   "host_permissions": ["https://erp.iredinternet.com.br/*"],
 
   "background": {
@@ -27,10 +27,17 @@
 
   "content_scripts": [
     {
-      "matches": ["https://erp.iredinternet.com.br/*"],
+      "matches": ["https://erp.iredinternet.com.br/attendance/*"],
       "js": ["src/content/collector.js"],
+      "css": ["src/content/overlay.css"],
       "run_at": "document_idle",
       "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content/overlay.css"],
+      "matches": ["https://erp.iredinternet.com.br/*"]
     }
   ]
 }
