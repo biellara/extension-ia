@@ -30,9 +30,14 @@ export default function App() {
     });
 
     // Ouve por atualizações de status do background
-    const listener = (message: any) => {
-      if (message.type === MSG_BG_STATUS) {
-        setStatus(message.payload);
+    const listener = (message: unknown) => {
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        "type" in message &&
+        (message as any).type === MSG_BG_STATUS
+      ) {
+        setStatus((message as any).payload);
       }
     };
     chrome.runtime.onMessage.addListener(listener);

@@ -10,7 +10,6 @@ import {
   OPTIONS_UPDATE_SETTINGS
 } from "../common/messaging/channels";
 import { processMessageBatch } from "../common/storage/storage";
-import { ConversationMeta } from "../common/types/models";
 
 console.log("[BG] Service Worker iniciado.");
 

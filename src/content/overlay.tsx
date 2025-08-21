@@ -57,10 +57,12 @@ const App = () => {
     safeSendMessage({ type: MSG_GET_STATUS });
     
     // Listener para o popup pedir para mostrar o overlay
-    const messageListener = (message: any) => {
-      if (message.type === CS_SHOW_OVERLAY) {
-        setMinimized(false);
-        saveOverlayUIState({ minimized: false });
+    const messageListener = (message: unknown) => {
+      if (typeof message === 'object' && message !== null && 'type' in message) {
+        if (message.type === CS_SHOW_OVERLAY) {
+          setMinimized(false);
+          saveOverlayUIState({ minimized: false });
+        }
       }
     };
     chrome.runtime.onMessage.addListener(messageListener);
