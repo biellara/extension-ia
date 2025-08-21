@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { getOverlayUIState, saveOverlayUIState } from '../common/storage/ui';
 import { safeSendMessage } from '../common/messaging/safeSend';
@@ -36,7 +36,7 @@ const App = () => {
     if (!chrome?.runtime?.id) return;
 
     getOverlayUIState().then(state => {
-      if (chrome?.runtime?.id) { // Verifica novamente após a promise resolver
+      if (chrome?.runtime?.id) {
         setPos(state.pos);
         setMinimized(state.minimized);
       }
@@ -49,14 +49,12 @@ const App = () => {
       }
     });
     
-    // Lida com a desconexão da porta (ocorre na invalidação do contexto)
     port.onDisconnect.addListener(() => {
         console.log("Porta do overlay desconectada.");
     });
 
     safeSendMessage({ type: MSG_GET_STATUS });
     
-    // Listener para o popup pedir para mostrar o overlay
     const messageListener = (message: unknown) => {
       if (typeof message === 'object' && message !== null && 'type' in message) {
         if (message.type === CS_SHOW_OVERLAY) {
@@ -88,7 +86,8 @@ const App = () => {
     document.body.style.userSelect = 'none';
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  // CORREÇÃO: Envolvemos as funções em useCallback
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !overlayRef.current) return;
     let newX = e.clientX - dragStartPos.current.x;
     let newY = e.clientY - dragStartPos.current.y;
@@ -99,14 +98,14 @@ const App = () => {
     newY = Math.max(0, Math.min(newY, innerHeight - offsetHeight));
 
     setPos({ x: newX, y: newY });
-  };
+  }, [isDragging]); // A dependência é 'isDragging'
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     if (!isDragging) return;
     setIsDragging(false);
     document.body.style.userSelect = '';
     saveOverlayUIState({ pos });
-  };
+  }, [isDragging, pos]); // As dependências são 'isDragging' e 'pos'
 
   useEffect(() => {
     if (isDragging) {
@@ -117,7 +116,8 @@ const App = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, pos]);
+    // CORREÇÃO: Adicionamos as funções ao array de dependências
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Ações dos botões
   const togglePause = () => safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
