@@ -35,9 +35,9 @@ export default function App() {
         typeof message === "object" &&
         message !== null &&
         "type" in message &&
-        (message as any).type === MSG_BG_STATUS
+        (message as { type: string; payload: BgStatus }).type === MSG_BG_STATUS
       ) {
-        setStatus((message as any).payload);
+        setStatus((message as { type: string; payload: BgStatus }).payload);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
