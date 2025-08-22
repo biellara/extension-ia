@@ -1,6 +1,4 @@
-// switches: Captura automática ON/OFF, Anonimização ON, Retenção (7/15/30), Limite (500/1000/2000).
-// lê/grava no storage (através do wrapper em /common/storage).
-import  { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAppSettings, saveAppSettings, AppSettings } from '../common/storage/settings';
 import { safeSendMessage } from '../common/messaging/safeSend';
 import { MSG_CLEAR_ALL_DATA } from '../common/messaging/channels';
@@ -16,7 +14,12 @@ const App = () => {
 
   const handleSettingChange = (key: keyof AppSettings, value: any) => {
     if (!settings) return;
-    const newSettings = { ...settings, [key]: value };
+    // Converte o valor para número se for o caso, para garantir o tipo correto
+    const parsedValue = (key === 'retentionDays' || key === 'messageLimit' || key === 'contextWindowSize')
+      ? parseInt(value, 10)
+      : value;
+
+    const newSettings = { ...settings, [key]: parsedValue };
     setSettings(newSettings);
     saveAppSettings(newSettings).then(() => {
       setStatusMessage('Configuração salva!');
@@ -40,6 +43,35 @@ const App = () => {
     <div className="options-container">
       <h1>Configurações da Extensão Echo</h1>
 
+      {/* Seção de IA */}
+      <div className="settings-section">
+        <h2>Integração com Gemini AI</h2>
+        <div className="setting-item">
+          <label htmlFor="geminiApiKey">API Key do Google AI:</label>
+          <input
+            type="password"
+            id="geminiApiKey"
+            value={settings.geminiApiKey}
+            onChange={(e) => handleSettingChange('geminiApiKey', e.target.value)}
+            style={{ width: '250px' }}
+            placeholder="Cole sua chave de API aqui"
+          />
+        </div>
+        <div className="setting-item">
+          <label htmlFor="contextWindowSize">Mensagens para contexto:</label>
+          <select
+            id="contextWindowSize"
+            value={settings.contextWindowSize}
+            onChange={(e) => handleSettingChange('contextWindowSize', e.target.value)}
+          >
+            <option value="30">Últimas 30</option>
+            <option value="50">Últimas 50</option>
+            <option value="80">Últimas 80</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Seção de Retenção de Dados */}
       <div className="settings-section">
         <h2>Retenção de Dados</h2>
         <div className="setting-item">
@@ -47,7 +79,7 @@ const App = () => {
           <select
             id="retentionDays"
             value={settings.retentionDays}
-            onChange={(e) => handleSettingChange('retentionDays', parseInt(e.target.value, 10))}
+            onChange={(e) => handleSettingChange('retentionDays', e.target.value)}
           >
             <option value="7">7 dias</option>
             <option value="15">15 dias</option>
@@ -59,7 +91,7 @@ const App = () => {
           <select
             id="messageLimit"
             value={settings.messageLimit}
-            onChange={(e) => handleSettingChange('messageLimit', parseInt(e.target.value, 10))}
+            onChange={(e) => handleSettingChange('messageLimit', e.target.value)}
           >
             <option value="500">500 mensagens</option>
             <option value="1000">1000 mensagens</option>
@@ -68,6 +100,7 @@ const App = () => {
         </div>
       </div>
 
+      {/* Seção de Privacidade */}
       <div className="privacy-section">
         <h2>Política de Privacidade</h2>
         <div className="privacy-policy">
@@ -81,6 +114,7 @@ const App = () => {
         </div>
       </div>
 
+      {/* Zona de Perigo */}
       <div className="danger-zone">
         <h2>Zona de Perigo</h2>
         <div className="setting-item">

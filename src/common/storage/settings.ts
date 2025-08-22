@@ -6,6 +6,10 @@ export interface AppSettings {
   retentionDays: 7 | 15 | 30;
   messageLimit: 500 | 1000 | 2000;
   anonymize: boolean;
+  // Novas configurações para a IA
+  geminiApiKey: string;
+  aiModel: string;
+  contextWindowSize: 30 | 50 | 80;
 }
 
 const STORAGE_KEY = 'echoAppSettings';
@@ -14,6 +18,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   retentionDays: 7,
   messageLimit: 2000,
   anonymize: true,
+  geminiApiKey: '',
+  aiModel: 'gemini-1.5-flash-latest',
+  contextWindowSize: 50,
 };
 
 /**

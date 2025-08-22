@@ -9,7 +9,12 @@ import {
   POPUP_CLEAR_CONVERSATION,
   OPTIONS_UPDATE_SETTINGS,
   CS_SHOW_OVERLAY,
-  MSG_OPEN_OPTIONS_PAGE
+  MSG_OPEN_OPTIONS_PAGE,
+  AI_SUMMARIZE,
+  AI_SUGGEST,
+  AI_CLASSIFY,
+  AI_RESULT,
+  AI_ERROR
 } from '../common/messaging/channels';
 import './overlay.css';
 
@@ -32,6 +37,11 @@ const App = () => {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
 
+  // Estados para a funcionalidade de IA
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   // Efeito para carregar estado inicial e conectar ao background
   useEffect(() => {
     if (!chrome?.runtime?.id) return;
@@ -39,10 +49,9 @@ const App = () => {
     getOverlayUIState().then(state => {
       if (chrome?.runtime?.id) {
         setMinimized(state.minimized);
-        // Se a posição nunca foi movida, calcula o canto inferior direito
         if (!state.hasBeenMoved) {
           const margin = 20;
-          const widgetSize = 50; // Tamanho do widget minimizado
+          const widgetSize = 50;
           const initialX = window.innerWidth - widgetSize - margin;
           const initialY = window.innerHeight - widgetSize - margin;
           setPos({ x: initialX, y: initialY });
@@ -64,6 +73,20 @@ const App = () => {
         setMinimized(false);
         saveOverlayUIState({ minimized: false });
       }
+      // Listener para resultados da IA
+      else if (message.type === AI_RESULT) {
+        if (message.payload.conversationKey === status.conversationKey) {
+          setAiResult(message.payload);
+          setAiError(null);
+          setIsAiLoading(false);
+        }
+      } else if (message.type === AI_ERROR) {
+        if (message.payload.conversationKey === status.conversationKey) {
+          setAiError(message.payload.reason);
+          setAiResult(null);
+          setIsAiLoading(false);
+        }
+      }
     };
     chrome.runtime.onMessage.addListener(messageListener);
 
@@ -73,10 +96,9 @@ const App = () => {
         chrome.runtime.onMessage.removeListener(messageListener);
       }
     };
-  }, []);
+  }, [status.conversationKey]); // Adiciona a chave da conversa como dependência
 
-  // --- LÓGICA DE DRAG & DROP OTIMIZADA ---
-
+  // Lógica de Drag & Drop Otimizada
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button, a, input, label')) return;
     
@@ -103,7 +125,6 @@ const App = () => {
     newX = Math.max(0, Math.min(newX, innerWidth - offsetWidth));
     newY = Math.max(0, Math.min(newY, innerHeight - offsetHeight));
 
-    // ATUALIZAÇÃO DIRETA NO DOM PARA FLUIDEZ
     overlayRef.current.style.left = `${newX}px`;
     overlayRef.current.style.top = `${newY}px`;
   }, [isDragging]);
@@ -118,8 +139,8 @@ const App = () => {
       document.body.style.userSelect = '';
       
       const finalPos = { x: overlay.offsetLeft, y: overlay.offsetTop };
-      setPos(finalPos); // Sincroniza o estado do React
-      saveOverlayUIState({ pos: finalPos, hasBeenMoved: true }); // Salva a posição final
+      setPos(finalPos);
+      saveOverlayUIState({ pos: finalPos, hasBeenMoved: true });
     }
   }, [isDragging]);
 
@@ -134,7 +155,7 @@ const App = () => {
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // --- Ações dos botões ---
+  // Ações dos botões
   const togglePause = () => safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
   const clearConversation = () => {
     if (window.confirm('Limpar histórico desta conversa?')) {
@@ -153,6 +174,13 @@ const App = () => {
     const newMinimized = !minimized;
     setMinimized(newMinimized);
     saveOverlayUIState({ minimized: newMinimized });
+  };
+  const handleAiAction = (type: 'AI_SUMMARIZE' | 'AI_SUGGEST' | 'AI_CLASSIFY') => {
+    if (!status.conversationKey) return;
+    setIsAiLoading(true);
+    setAiResult(null);
+    setAiError(null);
+    safeSendMessage({ type, payload: { conversationKey: status.conversationKey } });
   };
 
   const latestTime = status.latestTimestamp ? new Date(status.latestTimestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
@@ -195,6 +223,22 @@ const App = () => {
             <input type="checkbox" checked={!!status.settings?.anonymize} onChange={toggleAnonymize} />
             Anon
           </label>
+        </div>
+        {/* Seção de IA */}
+        <div className="echo-overlay-ia-section">
+            <div className="echo-overlay-ia-actions">
+                <button onClick={() => handleAiAction('AI_SUMMARIZE')} disabled={isAiLoading || status.state === 'idle'}>Resumo IA</button>
+                <button onClick={() => handleAiAction('AI_SUGGEST')} disabled={isAiLoading || status.state === 'idle'}>Sugestão</button>
+                <button onClick={() => handleAiAction('AI_CLASSIFY')} disabled={isAiLoading || status.state === 'idle'}>Classificar</button>
+            </div>
+            {isAiLoading && <div className="ai-loading">Consultando Gemini...</div>}
+            {aiError && <div className="ai-error">Erro: {aiError}</div>}
+            {aiResult && (
+                <div className="ai-result">
+                {/* A renderização do resultado será implementada aqui */}
+                <pre>{JSON.stringify(aiResult.data, null, 2)}</pre>
+                </div>
+            )}
         </div>
       </div>
       <div className="echo-overlay-footer">

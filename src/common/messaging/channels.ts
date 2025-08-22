@@ -17,4 +17,10 @@ export const OPTIONS_UPDATE_SETTINGS = 'options_update_settings';
 // CS -> Ação para mostrar o overlay
 export const CS_SHOW_OVERLAY = 'cs_show_overlay';
 
+// Mensagens relacionadas à IA
+export const AI_SUMMARIZE = 'AI_SUMMARIZE';
+export const AI_SUGGEST = 'AI_SUGGEST';
+export const AI_CLASSIFY = 'AI_CLASSIFY';
+export const AI_RESULT = 'AI_RESULT';
+export const AI_ERROR = 'AI_ERROR';
 

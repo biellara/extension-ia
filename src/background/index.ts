@@ -9,10 +9,14 @@ import {
   POPUP_CLEAR_CONVERSATION,
   OPTIONS_UPDATE_SETTINGS,
   MSG_OPEN_OPTIONS_PAGE,
-  MSG_CLEAR_ALL_DATA
+  MSG_CLEAR_ALL_DATA,
+  AI_SUMMARIZE,
+  AI_SUGGEST,
+  AI_CLASSIFY
 } from "../common/messaging/channels";
 import { processMessageBatch, clearConversationData } from "../common/storage/storage";
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
+import { handleAiRequest } from '../background/ai/aiHandlers';
 
 console.log("[BG] Service Worker iniciado.");
 
@@ -76,6 +80,15 @@ chrome.runtime.onConnect.addListener(port => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
+
+  // Roteamento para o handler de IA (a ser implementado no Passo 11)
+  // if (type === AI_SUMMARIZE || type === AI_SUGGEST || type === AI_CLASSIFY) {
+  //   const tabId = payload?.tabId || sender.tab?.id;
+  //   if (tabId) {
+  //     handleAiRequest(message, tabId);
+  //   }
+  //   return true; // É uma operação assíncrona
+  // }
   
   if (type === MSG_OPEN_OPTIONS_PAGE) {
     chrome.runtime.openOptionsPage();
@@ -123,7 +136,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const meta = await processMessageBatch(payload.conversationKey, payload.messages);
         currentState.messageCount = meta.messageCount;
         currentState.latestTimestamp = meta.latestTimestampISO;
-        stateChanged = true; // O estado mudou, então transmitimos
+        stateChanged = true;
         break;
 
       case MSG_GET_STATUS:
@@ -147,7 +160,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case OPTIONS_UPDATE_SETTINGS:
         await saveAppSettings(payload);
-        currentState.settings = await getAppSettings(); // Recarrega as configurações
+        currentState.settings = await getAppSettings();
         stateChanged = true;
         break;
     }
@@ -157,7 +170,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   })();
 
-  return true; // Mantém o canal de mensagem aberto para respostas assíncronas
+  return true;
 });
 
 // Context Menu
