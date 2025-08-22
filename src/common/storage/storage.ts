@@ -1,24 +1,77 @@
 import { ConversationMeta, StoredMessage } from "../types/models";
-
-const CHUNK_SIZE = 200;
-const RETENTION_DAYS = 7;
-const MAX_MESSAGES_PER_CONV = 2000;
+import { getAppSettings } from "./settings";
 
 // --- Funções Utilitárias de Storage ---
+
 async function loadData<T>(key: string, defaultValue: T): Promise<T> {
-  const result = await chrome.storage.local.get(key);
-  return result[key] || defaultValue;
+  try {
+    if (!chrome?.runtime?.id) return defaultValue;
+    const result = await chrome.storage.local.get(key);
+    return result[key] || defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
 }
 
 async function saveData(key: string, value: unknown): Promise<void> {
-  return chrome.storage.local.set({ [key]: value });
+  try {
+    if (!chrome?.runtime?.id) return;
+    return await chrome.storage.local.set({ [key]: value });
+  } catch (e) {
+    // Silencia o erro de contexto invalidado
+  }
 }
 
 async function removeData(keys: string | string[]): Promise<void> {
-  return chrome.storage.local.remove(keys);
+  try {
+    if (!chrome?.runtime?.id) return;
+    return await chrome.storage.local.remove(keys);
+  } catch (e) {
+     // Silencia o erro de contexto invalidado
+  }
 }
 
-// --- Funções de Lógica de Armazenamento ---
+// --- Lógica de Retenção ---
+
+async function applyRetention(
+  conversationKey: string,
+  meta: ConversationMeta
+): Promise<ConversationMeta> {
+  const settings = await getAppSettings();
+  const chunksToDelete: string[] = [];
+  let totalMessages = meta.messageCount;
+  let messagesDeletedCount = 0;
+
+  // Retenção por volume (limite de mensagens)
+  if (totalMessages > settings.messageLimit) {
+    const chunks = Array.from({ length: meta.chunks }, (_, i) => i + 1);
+    for (const chunkNum of chunks) {
+      if (totalMessages <= settings.messageLimit) break;
+
+      const chunkKey = `conv:${conversationKey}:chunk:${String(chunkNum).padStart(4, "0")}`;
+      const chunk = await loadData<StoredMessage[]>(chunkKey, []);
+      if (chunk.length > 0) {
+        chunksToDelete.push(chunkKey);
+        totalMessages -= chunk.length;
+        messagesDeletedCount += chunk.length;
+      }
+    }
+  }
+
+  // TODO: Implementar retenção por tempo (ex: 7 dias) em um passo futuro.
+
+  if (chunksToDelete.length > 0) {
+    // Não logamos o conteúdo, apenas a ação
+    console.log(`[BG Retention] Apagando ${chunksToDelete.length} chunks e ${messagesDeletedCount} mensagens por exceder o limite de ${settings.messageLimit}.`);
+    await removeData(chunksToDelete);
+    meta.messageCount = totalMessages;
+    // Idealmente, os chunks seriam renumerados, mas para simplicidade, mantemos assim.
+  }
+
+  return meta;
+}
+
+// --- Funções Principais de Gerenciamento de Dados ---
 
 function toLocalISO(timeStr: string): string {
   const now = new Date();
@@ -28,15 +81,12 @@ function toLocalISO(timeStr: string): string {
 }
 
 type IncomingMessage = {
-  timestamp: string; // Ex: "14:30"
-  digest: string; // Hash único da mensagem
-
-  // optional fields we may get from the collector
+  timestamp: string;
+  digest: string;
   timestampISO?: string;
   authorType?: "contact" | "agent" | string;
   authorLabel?: string;
   textRaw?: string;
-
   [key: string]: unknown;
 };
 
@@ -46,6 +96,7 @@ export async function processMessageBatch(
 ): Promise<ConversationMeta> {
   const metaKey = `conv:${conversationKey}:meta`;
   const digestsKey = `conv:${conversationKey}:digests`;
+  const CHUNK_SIZE = 200;
 
   let meta = await loadData<ConversationMeta | null>(metaKey, null);
   if (!meta) {
@@ -60,14 +111,8 @@ export async function processMessageBatch(
   const digestSet = new Set(await loadData<string[]>(digestsKey, []));
 
   const newMessages = messages
-    .map((m) => ({
-      ...m,
-      timestampISO: toLocalISO(m.timestamp),
-    }))
-    // tell TS that timestampISO is present from this point
-    .filter((m) => !digestSet.has(m.digest)) as (IncomingMessage & {
-    timestampISO: string;
-  })[];
+    .map((m) => ({ ...m, timestampISO: toLocalISO(m.timestamp) }))
+    .filter((m) => !digestSet.has(m.digest)) as (IncomingMessage & { timestampISO: string })[];
 
   if (newMessages.length === 0) {
     return meta;
@@ -78,35 +123,24 @@ export async function processMessageBatch(
   let chunkKey = `conv:${conversationKey}:chunk:${String(meta.chunks).padStart(4, "0")}`;
   let currentChunk = await loadData<StoredMessage[]>(chunkKey, []);
 
-  const remainingMessages = [...newMessages];
-
-  while (remainingMessages.length > 0) {
-    const spaceInChunk = CHUNK_SIZE - currentChunk.length;
-    const raw = remainingMessages.splice(0, spaceInChunk);
-
-    const messagesToAppend: StoredMessage[] = raw.map((m) => {
-      const mm = m as IncomingMessage & { timestampISO: string };
-      const authorType: StoredMessage["authorType"] =
-        mm.authorType === "agent" ? "agent" : "contact"; // normalize
-      return {
-        timestampISO: mm.timestampISO,
-        timestamp: mm.timestamp,
-        digest: mm.digest,
-        authorType,
-        authorLabel: typeof mm.authorLabel === "string" ? mm.authorLabel : "",
-        textRaw: typeof mm.textRaw === "string" ? mm.textRaw : "",
-      };
-    });
-
-    currentChunk.push(...messagesToAppend);
-    await saveData(chunkKey, currentChunk);
-
-    if (remainingMessages.length > 0) {
+  for (const message of newMessages) {
+    if (currentChunk.length >= CHUNK_SIZE) {
+      await saveData(chunkKey, currentChunk);
       meta.chunks += 1;
       chunkKey = `conv:${conversationKey}:chunk:${String(meta.chunks).padStart(4, "0")}`;
       currentChunk = [];
     }
+    const authorType: StoredMessage["authorType"] = message.authorType === "agent" ? "agent" : "contact";
+    currentChunk.push({
+      timestampISO: message.timestampISO,
+      digest: message.digest,
+      authorType,
+      authorLabel: typeof message.authorLabel === "string" ? message.authorLabel : "",
+      textRaw: typeof message.textRaw === "string" ? message.textRaw : "",
+    });
   }
+
+  await saveData(chunkKey, currentChunk);
 
   meta.messageCount += newMessages.length;
   meta.latestTimestampISO = newMessages[newMessages.length - 1].timestampISO;
@@ -116,49 +150,27 @@ export async function processMessageBatch(
   const updatedMeta = await applyRetention(conversationKey, meta);
   await saveData(metaKey, updatedMeta);
 
-  console.log(
-    `[BG Storage] ${newMessages.length} novas mensagens salvas para ${conversationKey}. Total: ${updatedMeta.messageCount}`
-  );
+  // Log sem dados sensíveis
+  console.log(`[BG Storage] ${newMessages.length} novas mensagens salvas para ${conversationKey}. Total: ${updatedMeta.messageCount}`);
   return updatedMeta;
 }
 
-async function applyRetention(
-  conversationKey: string,
-  meta: ConversationMeta
-): Promise<ConversationMeta> {
-  const chunksToDelete: string[] = [];
-  let totalMessages = meta.messageCount;
-  let messagesDeletedCount = 0;
+/**
+ * Apaga todos os dados associados a uma única conversa.
+ * @param conversationKey A chave da conversa a ser apagada.
+ */
+export async function clearConversationData(conversationKey: string): Promise<void> {
+  if (!conversationKey) return;
 
-  // Retenção por volume
-  if (totalMessages > MAX_MESSAGES_PER_CONV) {
-    const chunks = Array.from({ length: meta.chunks }, (_, i) => i + 1);
-    for (const chunkNum of chunks) {
-      if (totalMessages <= MAX_MESSAGES_PER_CONV) break;
+  const metaKey = `conv:${conversationKey}:meta`;
+  const meta = await loadData<ConversationMeta | null>(metaKey, null);
+  if (!meta) return;
 
-      const chunkKey = `conv:${conversationKey}:chunk:${String(chunkNum).padStart(4, "0")}`;
-      const chunk = await loadData<StoredMessage[]>(chunkKey, []);
-      if (chunk.length > 0) {
-        chunksToDelete.push(chunkKey);
-        totalMessages -= chunk.length;
-        messagesDeletedCount += chunk.length;
-      }
-    }
+  const keysToDelete = [metaKey, `conv:${conversationKey}:digests`];
+  for (let i = 1; i <= meta.chunks; i++) {
+    keysToDelete.push(`conv:${conversationKey}:chunk:${String(i).padStart(4, "0")}`);
   }
 
-  // Retenção por tempo (ainda por implementar em detalhe, mas a base está aqui)
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
-  // Aqui entraria a lógica para verificar o timestamp das mensagens em cada chunk
-
-  if (chunksToDelete.length > 0) {
-    console.log(
-      `[BG Retention] Apagando ${chunksToDelete.length} chunks e ${messagesDeletedCount} mensagens por excesso de volume.`
-    );
-    await removeData(chunksToDelete);
-    meta.messageCount = totalMessages;
-    // Aqui seria necessário re-numerar os chunks restantes, mas para simplificar, vamos deixar como está.
-  }
-
-  return meta;
+  await removeData(keysToDelete);
+  console.log(`[BG] Dados da conversa ${conversationKey} foram apagados.`);
 }

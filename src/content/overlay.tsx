@@ -9,7 +9,7 @@ import {
   POPUP_CLEAR_CONVERSATION,
   OPTIONS_UPDATE_SETTINGS,
   CS_SHOW_OVERLAY,
-  MSG_OPEN_OPTIONS_PAGE // Adicionado
+  MSG_OPEN_OPTIONS_PAGE
 } from '../common/messaging/channels';
 import './overlay.css';
 
@@ -26,11 +26,11 @@ type StatusPayload = {
 
 const App = () => {
   const [status, setStatus] = useState<StatusPayload>({ state: 'idle' });
-  const [pos, setPos] = useState({ x: 20, y: 20 });
-  const [minimized, setMinimized] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [minimized, setMinimized] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const dragStartPos = useRef({ x: 0, y: 0 });
+  const dragOffset = useRef({ x: 0, y: 0 });
 
   // Efeito para carregar estado inicial e conectar ao background
   useEffect(() => {
@@ -38,30 +38,31 @@ const App = () => {
 
     getOverlayUIState().then(state => {
       if (chrome?.runtime?.id) {
-        setPos(state.pos);
         setMinimized(state.minimized);
+        // Se a posição nunca foi movida, calcula o canto inferior direito
+        if (!state.hasBeenMoved) {
+          const margin = 20;
+          const widgetSize = 50; // Tamanho do widget minimizado
+          const initialX = window.innerWidth - widgetSize - margin;
+          const initialY = window.innerHeight - widgetSize - margin;
+          setPos({ x: initialX, y: initialY });
+        } else {
+          setPos(state.pos);
+        }
       }
     });
 
     const port = chrome.runtime.connect({ name: 'overlay' });
     port.onMessage.addListener(message => {
-      if (message.type === MSG_BG_STATUS) {
-        setStatus(message.payload);
-      }
+      if (message.type === MSG_BG_STATUS) setStatus(message.payload);
     });
-    
-    port.onDisconnect.addListener(() => {
-        console.log("Porta do overlay desconectada.");
-    });
-
+    port.onDisconnect.addListener(() => console.log("Porta do overlay desconectada."));
     safeSendMessage({ type: MSG_GET_STATUS });
     
-    const messageListener = (message: unknown) => {
-      if (typeof message === 'object' && message !== null && 'type' in message) {
-        if (message.type === CS_SHOW_OVERLAY) {
-          setMinimized(false);
-          saveOverlayUIState({ minimized: false });
-        }
+    const messageListener = (message: any) => {
+      if (message.type === CS_SHOW_OVERLAY) {
+        setMinimized(false);
+        saveOverlayUIState({ minimized: false });
       }
     };
     chrome.runtime.onMessage.addListener(messageListener);
@@ -74,43 +75,58 @@ const App = () => {
     };
   }, []);
 
-  // Handlers para drag-and-drop
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).tagName === 'A' || (e.target as HTMLElement).tagName === 'INPUT') {
-      return;
-    }
+  // --- LÓGICA DE DRAG & DROP OTIMIZADA ---
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button, a, input, label')) return;
+    
     setIsDragging(true);
-    dragStartPos.current = {
-      x: e.clientX - pos.x,
-      y: e.clientY - pos.y,
-    };
-    document.body.style.userSelect = 'none';
-  };
+    const overlay = overlayRef.current;
+    if (overlay) {
+      dragOffset.current = {
+        x: e.clientX - overlay.offsetLeft,
+        y: e.clientY - overlay.offsetTop,
+      };
+      overlay.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+    }
+  }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !overlayRef.current) return;
-    let newX = e.clientX - dragStartPos.current.x;
-    let newY = e.clientY - dragStartPos.current.y;
+    
+    let newX = e.clientX - dragOffset.current.x;
+    let newY = e.clientY - dragOffset.current.y;
 
     const { innerWidth, innerHeight } = window;
     const { offsetWidth, offsetHeight } = overlayRef.current;
     newX = Math.max(0, Math.min(newX, innerWidth - offsetWidth));
     newY = Math.max(0, Math.min(newY, innerHeight - offsetHeight));
 
-    setPos({ x: newX, y: newY });
+    // ATUALIZAÇÃO DIRETA NO DOM PARA FLUIDEZ
+    overlayRef.current.style.left = `${newX}px`;
+    overlayRef.current.style.top = `${newY}px`;
   }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return;
+    
     setIsDragging(false);
-    document.body.style.userSelect = '';
-    saveOverlayUIState({ pos });
-  }, [isDragging, pos]);
+    const overlay = overlayRef.current;
+    if (overlay) {
+      overlay.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      
+      const finalPos = { x: overlay.offsetLeft, y: overlay.offsetTop };
+      setPos(finalPos); // Sincroniza o estado do React
+      saveOverlayUIState({ pos: finalPos, hasBeenMoved: true }); // Salva a posição final
+    }
+  }, [isDragging]);
 
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleMouseUp, { once: true });
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
@@ -118,7 +134,7 @@ const App = () => {
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Ações dos botões
+  // --- Ações dos botões ---
   const togglePause = () => safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
   const clearConversation = () => {
     if (window.confirm('Limpar histórico desta conversa?')) {
@@ -129,13 +145,10 @@ const App = () => {
     const anonymize = !status.settings?.anonymize;
     safeSendMessage({ type: OPTIONS_UPDATE_SETTINGS, payload: { anonymize } });
   };
-  
-  // CORREÇÃO: Esta função agora envia uma mensagem para o background script.
   const openOptions = (e: React.MouseEvent) => {
     e.preventDefault();
     safeSendMessage({ type: MSG_OPEN_OPTIONS_PAGE });
   };
-
   const toggleMinimize = () => {
     const newMinimized = !minimized;
     setMinimized(newMinimized);
@@ -148,7 +161,7 @@ const App = () => {
     return (
       <div
         ref={overlayRef}
-        className={`echo-overlay minimized`}
+        className="echo-overlay minimized"
         style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
         onClick={toggleMinimize}
       >

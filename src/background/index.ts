@@ -8,9 +8,11 @@ import {
   POPUP_TOGGLE_PAUSE,
   POPUP_CLEAR_CONVERSATION,
   OPTIONS_UPDATE_SETTINGS,
-  MSG_OPEN_OPTIONS_PAGE // Adicionado
+  MSG_OPEN_OPTIONS_PAGE,
+  MSG_CLEAR_ALL_DATA
 } from "../common/messaging/channels";
-import { processMessageBatch } from "../common/storage/storage";
+import { processMessageBatch, clearConversationData } from "../common/storage/storage";
+import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
 
 console.log("[BG] Service Worker iniciado.");
 
@@ -20,29 +22,29 @@ type AppState = {
   conversationKey?: string;
   messageCount?: number;
   latestTimestamp?: string;
-  settings: {
-    anonymize: boolean;
-  }
+  settings: AppSettings;
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
 
-function getTabState(tabId: number): AppState {
+async function getTabState(tabId: number): Promise<AppState> {
   if (!tabStates[tabId]) {
     tabStates[tabId] = {
       state: 'idle',
       paused: false,
-      settings: { anonymize: true }
+      settings: await getAppSettings()
     };
   }
+  // Garante que as configurações estejam sempre atualizadas
+  tabStates[tabId].settings = await getAppSettings();
   return tabStates[tabId];
 }
 
-function broadcastStatus(tabId: number) {
+async function broadcastStatus(tabId: number) {
   const port = activePorts[tabId];
   if (port) {
-    const state = getTabState(tabId);
+    const state = await getTabState(tabId);
     try {
       port.postMessage({ type: MSG_BG_STATUS, payload: state });
       if (chrome.runtime.lastError) {
@@ -75,74 +77,90 @@ chrome.runtime.onConnect.addListener(port => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
   
-  // Abertura de opções não depende de uma aba, então tratamos antes
   if (type === MSG_OPEN_OPTIONS_PAGE) {
     chrome.runtime.openOptionsPage();
     return;
   }
-  
-  const tabId = payload?.tabId || sender.tab?.id;
 
-  if (!tabId) {
-    return true;
+  if (type === MSG_CLEAR_ALL_DATA) {
+      chrome.storage.local.clear(() => {
+        console.log("[BG] Todos os dados foram apagados.");
+        Object.keys(tabStates).forEach(id => {
+            const tabIdNum = parseInt(id, 10);
+            const state = tabStates[tabIdNum];
+            if (state) {
+                state.state = 'idle';
+                state.conversationKey = undefined;
+                state.messageCount = 0;
+                broadcastStatus(tabIdNum);
+            }
+        });
+        sendResponse({ ok: true });
+      });
+      return true;
   }
 
-  const currentState = getTabState(tabId);
-  let stateChanged = false;
+  const tabId = payload?.tabId || sender.tab?.id;
+  if (!tabId) return true;
 
-  switch (type) {
-    case MSG_CS_CONVERSATION_CHANGE:
-      currentState.state = 'observing';
-      currentState.conversationKey = payload.conversationKey;
-      currentState.messageCount = 0;
-      currentState.latestTimestamp = undefined;
-      if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
-      stateChanged = true;
-      break;
+  (async () => {
+    const currentState = await getTabState(tabId);
+    let stateChanged = false;
 
-    case MSG_CS_SNAPSHOT_RESULT:
-    case MSG_CS_NEW_MESSAGES:
-      if (currentState.paused) break;
-      processMessageBatch(payload.conversationKey, payload.messages).then(meta => {
+    switch (type) {
+      case MSG_CS_CONVERSATION_CHANGE:
+        currentState.state = 'observing';
+        currentState.conversationKey = payload.conversationKey;
+        currentState.messageCount = 0;
+        currentState.latestTimestamp = undefined;
+        if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
+        stateChanged = true;
+        break;
+
+      case MSG_CS_SNAPSHOT_RESULT:
+      case MSG_CS_NEW_MESSAGES:
+        if (currentState.paused) break;
+        const meta = await processMessageBatch(payload.conversationKey, payload.messages);
         currentState.messageCount = meta.messageCount;
         currentState.latestTimestamp = meta.latestTimestampISO;
-        broadcastStatus(tabId);
-      });
-      break;
+        stateChanged = true; // O estado mudou, então transmitimos
+        break;
 
-    case MSG_GET_STATUS:
-      sendResponse({ type: MSG_BG_STATUS, payload: currentState });
+      case MSG_GET_STATUS:
+        sendResponse({ type: MSG_BG_STATUS, payload: currentState });
+        break;
+
+      case POPUP_TOGGLE_PAUSE:
+        currentState.paused = !currentState.paused;
+        currentState.state = currentState.paused ? 'paused' : 'observing';
+        stateChanged = true;
+        break;
+
+      case POPUP_CLEAR_CONVERSATION:
+        if (payload.conversationKey) {
+          await clearConversationData(payload.conversationKey);
+          currentState.messageCount = 0;
+          currentState.latestTimestamp = undefined;
+          stateChanged = true;
+        }
+        break;
+
+      case OPTIONS_UPDATE_SETTINGS:
+        await saveAppSettings(payload);
+        currentState.settings = await getAppSettings(); // Recarrega as configurações
+        stateChanged = true;
+        break;
+    }
+
+    if (stateChanged) {
       broadcastStatus(tabId);
-      break;
-
-    case POPUP_TOGGLE_PAUSE:
-      currentState.paused = !currentState.paused;
-      currentState.state = currentState.paused ? 'paused' : 'observing';
-      stateChanged = true;
-      break;
-
-    case POPUP_CLEAR_CONVERSATION:
-      console.log(`[BG] Limpando conversa ${payload.conversationKey}`);
-      currentState.messageCount = 0;
-      currentState.latestTimestamp = undefined;
-      // TODO: Chamar uma função em storage.ts para limpar os dados
-      stateChanged = true;
-      break;
-
-    case OPTIONS_UPDATE_SETTINGS:
-      currentState.settings = { ...currentState.settings, ...payload };
-      stateChanged = true;
-      break;
-  }
-
-  if (stateChanged) {
-    broadcastStatus(tabId);
-  }
+    }
+  })();
 
   return true; // Mantém o canal de mensagem aberto para respostas assíncronas
 });
 
-// (Opcional) Context Menu
+// Context Menu
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "toggle-pause",
@@ -152,9 +170,9 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "toggle-pause" && tab?.id) {
-    const state = getTabState(tab.id);
+    const state = await getTabState(tab.id);
     state.paused = !state.paused;
     state.state = state.paused ? 'paused' : 'observing';
     broadcastStatus(tab.id);

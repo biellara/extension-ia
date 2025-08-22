@@ -1,7 +1,7 @@
 /* Estilos para o overlay flutuante no ERP */
 .echo-overlay {
   position: fixed;
-  z-index: 2147483646; /* Garante que fique sobre a maioria dos elementos */
+  z-index: 2147483646;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -9,7 +9,16 @@
   width: 280px;
   color: #333;
   font-size: 14px;
-  transition: all 0.2s ease-in-out;
+  /* TRANSIÇÕES: Suaviza a mudança de tamanho e opacidade ao minimizar/expandir */
+  transition: width 0.2s ease-in-out, height 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  opacity: 1;
+}
+
+/* Estilo para o modo arrastando: remove transições de posição para fluidez */
+.echo-overlay.dragging {
+  transition: none;
+  opacity: 0.85;
+  cursor: grabbing;
 }
 
 .echo-overlay.minimized {
