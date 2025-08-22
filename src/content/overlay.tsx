@@ -8,7 +8,8 @@ import {
   POPUP_TOGGLE_PAUSE,
   POPUP_CLEAR_CONVERSATION,
   OPTIONS_UPDATE_SETTINGS,
-  CS_SHOW_OVERLAY
+  CS_SHOW_OVERLAY,
+  MSG_OPEN_OPTIONS_PAGE // Adicionado
 } from '../common/messaging/channels';
 import './overlay.css';
 
@@ -86,7 +87,6 @@ const App = () => {
     document.body.style.userSelect = 'none';
   };
 
-  // CORREÇÃO: Envolvemos as funções em useCallback
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !overlayRef.current) return;
     let newX = e.clientX - dragStartPos.current.x;
@@ -98,14 +98,14 @@ const App = () => {
     newY = Math.max(0, Math.min(newY, innerHeight - offsetHeight));
 
     setPos({ x: newX, y: newY });
-  }, [isDragging]); // A dependência é 'isDragging'
+  }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return;
     setIsDragging(false);
     document.body.style.userSelect = '';
     saveOverlayUIState({ pos });
-  }, [isDragging, pos]); // As dependências são 'isDragging' e 'pos'
+  }, [isDragging, pos]);
 
   useEffect(() => {
     if (isDragging) {
@@ -116,7 +116,6 @@ const App = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-    // CORREÇÃO: Adicionamos as funções ao array de dependências
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Ações dos botões
@@ -130,12 +129,13 @@ const App = () => {
     const anonymize = !status.settings?.anonymize;
     safeSendMessage({ type: OPTIONS_UPDATE_SETTINGS, payload: { anonymize } });
   };
+  
+  // CORREÇÃO: Esta função agora envia uma mensagem para o background script.
   const openOptions = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (chrome?.runtime?.id) {
-      chrome.runtime.openOptionsPage();
-    }
+    safeSendMessage({ type: MSG_OPEN_OPTIONS_PAGE });
   };
+
   const toggleMinimize = () => {
     const newMinimized = !minimized;
     setMinimized(newMinimized);

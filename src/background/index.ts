@@ -7,7 +7,8 @@ import {
   MSG_BG_STATUS,
   POPUP_TOGGLE_PAUSE,
   POPUP_CLEAR_CONVERSATION,
-  OPTIONS_UPDATE_SETTINGS
+  OPTIONS_UPDATE_SETTINGS,
+  MSG_OPEN_OPTIONS_PAGE // Adicionado
 } from "../common/messaging/channels";
 import { processMessageBatch } from "../common/storage/storage";
 
@@ -38,26 +39,18 @@ function getTabState(tabId: number): AppState {
   return tabStates[tabId];
 }
 
-/**
- * Transmite o estado atualizado para o overlay de uma aba específica.
- * Inclui tratamento de erros para portas que foram fechadas (ex: por bfcache).
- * @param tabId O ID da aba para a qual enviar o status.
- */
 function broadcastStatus(tabId: number) {
   const port = activePorts[tabId];
   if (port) {
     const state = getTabState(tabId);
     try {
       port.postMessage({ type: MSG_BG_STATUS, payload: state });
-      // VERIFICAÇÃO ADICIONAL: Trata o erro específico do bfcache que não é capturado pelo catch.
       if (chrome.runtime.lastError) {
         console.warn(`[BG] lastError ao enviar status para aba ${tabId}: ${chrome.runtime.lastError.message}`);
-        // Limpa a porta inválida
         delete activePorts[tabId];
       }
     } catch (e) {
       console.warn(`[BG] Falha ao enviar status para aba ${tabId}, porta desconectada.`, e);
-      // Limpa a porta inválida
       delete activePorts[tabId];
     }
   }
@@ -70,10 +63,8 @@ chrome.runtime.onConnect.addListener(port => {
     console.log(`[BG] Overlay conectado na aba ${tabId}`);
 
     port.onDisconnect.addListener(() => {
-      // Limpa a porta quando o content script se desconecta
       delete activePorts[tabId];
       console.log(`[BG] Overlay desconectado da aba ${tabId}`);
-      // Verifica o lastError para evitar erros não verificados no log
       if (chrome.runtime.lastError) {
          console.log(`[BG] onDisconnect lastError: ${chrome.runtime.lastError.message}`);
       }
@@ -83,9 +74,18 @@ chrome.runtime.onConnect.addListener(port => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
-  const tabId = sender.tab?.id;
+  
+  // Abertura de opções não depende de uma aba, então tratamos antes
+  if (type === MSG_OPEN_OPTIONS_PAGE) {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
+  
+  const tabId = payload?.tabId || sender.tab?.id;
 
-  if (!tabId) return true; // Ignora mensagens sem um ID de aba
+  if (!tabId) {
+    return true;
+  }
 
   const currentState = getTabState(tabId);
   let stateChanged = false;
@@ -106,9 +106,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       processMessageBatch(payload.conversationKey, payload.messages).then(meta => {
         currentState.messageCount = meta.messageCount;
         currentState.latestTimestamp = meta.latestTimestampISO;
-        broadcastStatus(tabId); // Transmite após a operação assíncrona
+        broadcastStatus(tabId);
       });
-      // A mudança de estado é transmitida dentro do .then()
       break;
 
     case MSG_GET_STATUS:
@@ -140,7 +139,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     broadcastStatus(tabId);
   }
 
-  return true;
+  return true; // Mantém o canal de mensagem aberto para respostas assíncronas
 });
 
 // (Opcional) Context Menu
