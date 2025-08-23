@@ -3,17 +3,17 @@
  */
 import { AiRequest, AiResult, AiError } from '../../common/ai/types';
 import { getAppSettings } from '../../common/storage/settings';
-import { getLastNMessages } from '../../common/ai/windowing';
+import { getLastNMessages } from '../../background/ai/windowing';
 import { formatConversationForPrompt } from '../../common/ai/format';
 import { callGemini } from './geminiProvider';
 
-// Importa os schemas e prompts
-import { summarySchema } from '../ai/schemas/summary.schema';
-import { suggestionSchema } from '../ai/schemas/suggest.schema';
-import { classificationSchema } from '../ai/schemas/classify.schema';
-import summarizePrompt from '../ai/prompts/summarize.pt.txt?raw';
-import suggestPrompt from '../ai/prompts/suggest.pt.txt?raw';
-import classifyPrompt from '../ai/prompts/classify.pt.txt?raw';
+// Importa os schemas
+import { summarySchema } from './schemas/summary.schema';
+import { suggestionSchema } from './schemas/suggest.schema';
+import { classificationSchema } from './schemas/classify.schema';
+
+// Importa os prompts do novo módulo centralizado
+import { summarizePrompt, suggestPrompt, classifyPrompt } from './prompts';
 
 /**
  * Lida com uma requisição de IA vinda do overlay.
@@ -26,8 +26,12 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
 
   try {
     const settings = await getAppSettings();
-    if (!settings.geminiApiKey) {
-      throw new Error("API Key do Gemini não configurada.");
+    
+    // CORREÇÃO: Acessa a API key diretamente da variável de ambiente.
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("API Key do Gemini não encontrada. Verifique se o arquivo .env está configurado corretamente.");
     }
 
     const messages = await getLastNMessages(payload.conversationKey, settings.contextWindowSize);
@@ -63,7 +67,8 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
 
     const fullPrompt = `${promptText}\n\nTranscrição:\n${formattedConversation}`;
 
-    const result = await callGemini(settings.geminiApiKey, settings.aiModel, fullPrompt, schema);
+    // CORREÇÃO: Passa a apiKey obtida da variável de ambiente.
+    const result = await callGemini(apiKey, settings.aiModel, fullPrompt, schema);
 
     const tookMs = Date.now() - startTime;
     const resultPayload: AiResult['payload'] = {

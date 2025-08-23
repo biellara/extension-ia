@@ -120,3 +120,128 @@
 .echo-overlay-footer a:hover {
   text-decoration: underline;
 }
+
+.echo-overlay-ia-section {
+  border-top: 1px solid #eee;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.echo-overlay-ia-actions {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 10px;
+}
+
+.echo-overlay-ia-actions button {
+  background-color: #e7f3ff;
+  border: 1px solid #99c7ff;
+  color: #0052cc;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.echo-overlay-ia-actions button:hover:not(:disabled) {
+  background-color: #d0e7ff;
+}
+
+.echo-overlay-ia-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-loading, .ai-error {
+  text-align: center;
+  padding: 12px;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.ai-loading {
+  color: #555;
+}
+
+.ai-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.ai-result {
+  margin-top: 10px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ai-result-section h3 {
+  font-size: 15px;
+  margin: 0 0 10px 0;
+  color: #0052cc;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 6px;
+}
+
+.ai-result-section h4 {
+  font-size: 13px;
+  margin: 10px 0 5px 0;
+  color: #333;
+}
+
+.ai-result-section ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.suggestion-card {
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suggestion-header strong {
+  font-size: 13px;
+}
+
+.copy-button {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.copy-button:hover {
+  background-color: #eee;
+}
+
+.suggestion-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.classification-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  font-size: 13px;
+  align-items: center;
+}

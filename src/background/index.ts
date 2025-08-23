@@ -16,7 +16,7 @@ import {
 } from "../common/messaging/channels";
 import { processMessageBatch, clearConversationData } from "../common/storage/storage";
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
-import { handleAiRequest } from '../background/ai/aiHandlers';
+import { handleAiRequest } from "../background/ai/aiHandlers"; // Importa o handler de IA
 
 console.log("[BG] Service Worker iniciado.");
 
@@ -40,7 +40,6 @@ async function getTabState(tabId: number): Promise<AppState> {
       settings: await getAppSettings()
     };
   }
-  // Garante que as configurações estejam sempre atualizadas
   tabStates[tabId].settings = await getAppSettings();
   return tabStates[tabId];
 }
@@ -81,14 +80,15 @@ chrome.runtime.onConnect.addListener(port => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
 
-  // Roteamento para o handler de IA (a ser implementado no Passo 11)
-  // if (type === AI_SUMMARIZE || type === AI_SUGGEST || type === AI_CLASSIFY) {
-  //   const tabId = payload?.tabId || sender.tab?.id;
-  //   if (tabId) {
-  //     handleAiRequest(message, tabId);
-  //   }
-  //   return true; // É uma operação assíncrona
-  // }
+  // CORREÇÃO: Ativa o roteamento para o handler de IA
+  if (type === AI_SUMMARIZE || type === AI_SUGGEST || type === AI_CLASSIFY) {
+    const tabId = payload?.tabId || sender.tab?.id;
+    if (tabId) {
+      console.log(`[BG] Roteando a ação de IA '${type}' para o handler.`);
+      handleAiRequest(message, tabId);
+    }
+    return true; // Indica que a resposta será assíncrona
+  }
   
   if (type === MSG_OPEN_OPTIONS_PAGE) {
     chrome.runtime.openOptionsPage();

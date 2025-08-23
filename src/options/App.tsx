@@ -14,7 +14,6 @@ const App = () => {
 
   const handleSettingChange = (key: keyof AppSettings, value: any) => {
     if (!settings) return;
-    // Converte o valor para número se for o caso, para garantir o tipo correto
     const parsedValue = (key === 'retentionDays' || key === 'messageLimit' || key === 'contextWindowSize')
       ? parseInt(value, 10)
       : value;
@@ -43,20 +42,11 @@ const App = () => {
     <div className="options-container">
       <h1>Configurações da Extensão Echo</h1>
 
-      {/* Seção de IA */}
       <div className="settings-section">
         <h2>Integração com Gemini AI</h2>
-        <div className="setting-item">
-          <label htmlFor="geminiApiKey">API Key do Google AI:</label>
-          <input
-            type="password"
-            id="geminiApiKey"
-            value={settings.geminiApiKey}
-            onChange={(e) => handleSettingChange('geminiApiKey', e.target.value)}
-            style={{ width: '250px' }}
-            placeholder="Cole sua chave de API aqui"
-          />
-        </div>
+        <p style={{ fontSize: '14px', color: '#555', marginTop: '-10px' }}>
+          A API Key é gerenciada através do arquivo <code>.env</code> do projeto.
+        </p>
         <div className="setting-item">
           <label htmlFor="contextWindowSize">Mensagens para contexto:</label>
           <select
@@ -71,7 +61,6 @@ const App = () => {
         </div>
       </div>
 
-      {/* Seção de Retenção de Dados */}
       <div className="settings-section">
         <h2>Retenção de Dados</h2>
         <div className="setting-item">
@@ -100,7 +89,6 @@ const App = () => {
         </div>
       </div>
 
-      {/* Seção de Privacidade */}
       <div className="privacy-section">
         <h2>Política de Privacidade</h2>
         <div className="privacy-policy">
@@ -114,7 +102,6 @@ const App = () => {
         </div>
       </div>
 
-      {/* Zona de Perigo */}
       <div className="danger-zone">
         <h2>Zona de Perigo</h2>
         <div className="setting-item">

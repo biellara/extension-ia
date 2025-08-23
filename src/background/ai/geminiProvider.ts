@@ -1,29 +1,15 @@
 /**
  * @file Contém a lógica central para fazer chamadas à API do Google Gemini.
  */
+import { fetchViaOffscreen } from '../offscreenHelpers'; // Importa o helper do offscreen
 
-const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 interface GeminiResponse {
-  candidates: Array<{
-    content: {
-      parts: Array<{ text: string }>;
-    };
-  }>;
-  usageMetadata?: {
-    promptTokenCount: number;
-    candidatesTokenCount: number;
-  }
+  candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+  usageMetadata?: { promptTokenCount: number; candidatesTokenCount: number; }
 }
 
-/**
- * Envia um prompt para a API do Gemini e retorna a resposta.
- * @param apiKey A chave de API do usuário.
- * @param model O modelo a ser usado (ex: 'gemini-1.5-flash-latest').
- * @param prompt O prompt completo a ser enviado.
- * @param responseSchema O schema JSON esperado para a resposta.
- * @returns Um objeto com os dados da resposta e metadados de uso.
- */
 export async function callGemini(
   apiKey: string,
   model: string,
@@ -31,8 +17,7 @@ export async function callGemini(
   responseSchema?: object
 ): Promise<{ data: any; tokensIn: number; tokensOut: number; }> {
 
-  const url = `${API_ENDPOINT}/${model}:generateContent?key=${apiKey}`;
-
+  const url = `${API_BASE_URL}/${model}:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -43,7 +28,7 @@ export async function callGemini(
       topK: 40,
       maxOutputTokens: 1024,
     },
-    safetySettings: [ // Configurações de segurança para evitar bloqueios desnecessários
+    safetySettings: [
       { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
       { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
       { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
@@ -51,21 +36,18 @@ export async function callGemini(
     ],
   };
 
-  const response = await fetch(url, {
+  console.log(`[Gemini Provider] Enviando requisição para o modelo: ${model} via Offscreen`);
+
+  // CORREÇÃO: Usa o helper do offscreen em vez do fetch global para evitar o erro de CORS.
+  const result = await fetchViaOffscreen(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  });
+  }) as GeminiResponse;
 
-  if (!response.ok) {
-    const errorBody = await response.json();
-    throw new Error(`Erro na API do Gemini: ${response.status} ${response.statusText} - ${JSON.stringify(errorBody)}`);
-  }
-
-  const result = (await response.json()) as GeminiResponse;
-
-  if (!result.candidates || result.candidates.length === 0) {
-    throw new Error("A API do Gemini não retornou candidatos.");
+  if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
+    console.error("[Gemini Provider] Resposta inválida da API:", result);
+    throw new Error("A API do Gemini retornou uma resposta vazia ou inválida.");
   }
 
   const textResponse = result.candidates[0].content.parts[0].text;

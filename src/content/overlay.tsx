@@ -16,7 +16,62 @@ import {
   AI_RESULT,
   AI_ERROR
 } from '../common/messaging/channels';
+import { AiResult } from '../common/ai/types';
 import './overlay.css';
+
+// --- Subcomponentes para Renderizar Resultados da IA ---
+
+const SummaryResult = ({ data }: { data: any }) => (
+  <div className="ai-result-section">
+    <h3>Resumo da Conversa</h3>
+    {data.topics && (
+      <>
+        <h4>Tópicos Principais:</h4>
+        <ul>{data.topics.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
+      </>
+    )}
+    {data.next_steps && (
+      <>
+        <h4>Próximos Passos:</h4>
+        <ul>{data.next_steps.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
+      </>
+    )}
+  </div>
+);
+
+const SuggestionResult = ({ data }: { data: any }) => {
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+  return (
+    <div className="ai-result-section">
+      <h3>Sugestões de Resposta</h3>
+      {data.suggestions?.map((sug: { tone: string, text: string }, i: number) => (
+        <div key={i} className="suggestion-card">
+          <div className="suggestion-header">
+            <strong>Tom: {sug.tone}</strong>
+            <button onClick={() => handleCopy(sug.text)} className="copy-button">Copiar</button>
+          </div>
+          <p>{sug.text}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ClassificationResult = ({ data }: { data: any }) => (
+  <div className="ai-result-section">
+    <h3>Classificação</h3>
+    <div className="classification-grid">
+      <span>Motivo:</span> <strong>{data.reason}</strong>
+      <span>Urgência:</span> <strong>{data.urgency}</strong>
+      <span>Sentimento:</span> <strong>{data.sentiment}</strong>
+    </div>
+  </div>
+);
+
+
+// --- Componente Principal do Overlay ---
 
 type StatusPayload = {
   state?: 'idle' | 'observing' | 'paused';
@@ -24,9 +79,7 @@ type StatusPayload = {
   conversationKey?: string;
   messageCount?: number;
   latestTimestamp?: string;
-  settings?: {
-    anonymize?: boolean;
-  };
+  settings?: { anonymize?: boolean; };
 };
 
 const App = () => {
@@ -36,13 +89,11 @@ const App = () => {
   const [isDragging, setIsDragging] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
-
-  // Estados para a funcionalidade de IA
+  
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiResult, setAiResult] = useState<AiResult['payload'] | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Efeito para carregar estado inicial e conectar ao background
   useEffect(() => {
     if (!chrome?.runtime?.id) return;
 
@@ -73,7 +124,6 @@ const App = () => {
         setMinimized(false);
         saveOverlayUIState({ minimized: false });
       }
-      // Listener para resultados da IA
       else if (message.type === AI_RESULT) {
         if (message.payload.conversationKey === status.conversationKey) {
           setAiResult(message.payload);
@@ -96,9 +146,8 @@ const App = () => {
         chrome.runtime.onMessage.removeListener(messageListener);
       }
     };
-  }, [status.conversationKey]); // Adiciona a chave da conversa como dependência
+  }, [status.conversationKey]);
 
-  // Lógica de Drag & Drop Otimizada
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button, a, input, label')) return;
     
@@ -155,7 +204,6 @@ const App = () => {
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Ações dos botões
   const togglePause = () => safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
   const clearConversation = () => {
     if (window.confirm('Limpar histórico desta conversa?')) {
@@ -181,6 +229,20 @@ const App = () => {
     setAiResult(null);
     setAiError(null);
     safeSendMessage({ type, payload: { conversationKey: status.conversationKey } });
+  };
+  
+  const renderAiResult = () => {
+    if (!aiResult) return null;
+    switch (aiResult.kind) {
+      case 'summary':
+        return <SummaryResult data={aiResult.data} />;
+      case 'suggestion':
+        return <SuggestionResult data={aiResult.data} />;
+      case 'classification':
+        return <ClassificationResult data={aiResult.data} />;
+      default:
+        return <pre>{JSON.stringify(aiResult.data, null, 2)}</pre>;
+    }
   };
 
   const latestTime = status.latestTimestamp ? new Date(status.latestTimestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
@@ -224,7 +286,7 @@ const App = () => {
             Anon
           </label>
         </div>
-        {/* Seção de IA */}
+        
         <div className="echo-overlay-ia-section">
             <div className="echo-overlay-ia-actions">
                 <button onClick={() => handleAiAction('AI_SUMMARIZE')} disabled={isAiLoading || status.state === 'idle'}>Resumo IA</button>
@@ -233,12 +295,7 @@ const App = () => {
             </div>
             {isAiLoading && <div className="ai-loading">Consultando Gemini...</div>}
             {aiError && <div className="ai-error">Erro: {aiError}</div>}
-            {aiResult && (
-                <div className="ai-result">
-                {/* A renderização do resultado será implementada aqui */}
-                <pre>{JSON.stringify(aiResult.data, null, 2)}</pre>
-                </div>
-            )}
+            {aiResult && <div className="ai-result">{renderAiResult()}</div>}
         </div>
       </div>
       <div className="echo-overlay-footer">
@@ -248,13 +305,17 @@ const App = () => {
   );
 };
 
-// Injeta a raiz do overlay e monta o componente
-if (!document.getElementById('echo-overlay-root')) {
+// CORREÇÃO: Adicionado try...catch para garantir que erros de renderização sejam visíveis.
+try {
+  if (!document.getElementById('echo-overlay-root')) {
     const rootEl = document.createElement('div');
     rootEl.id = 'echo-overlay-root';
     document.body.appendChild(rootEl);
     const root = createRoot(rootEl);
     root.render(<App />);
+  }
+} catch (e) {
+  console.error('[Echo Overlay] Falha fatal ao renderizar o componente React:', e);
 }
 
 export default App;

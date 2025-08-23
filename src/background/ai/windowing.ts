@@ -1,7 +1,7 @@
 /**
  * @file Busca as últimas N mensagens de uma conversa no storage.
  */
-import { ConversationMeta, StoredMessage } from "../types/models";
+import { ConversationMeta, StoredMessage } from "../../common/types/models";
 
 async function loadData<T>(key: string, defaultValue: T): Promise<T> {
   const result = await chrome.storage.local.get(key);
@@ -34,6 +34,9 @@ export async function getLastNMessages(conversationKey: string, n: number): Prom
 
   // Pega apenas as últimas N mensagens e garante a ordem ascendente
   const finalMessages = messages.slice(-n);
+
+    console.log(`[AI DEBUG] Windowing: Foram buscadas ${finalMessages.length} de ${meta.messageCount} mensagens para o contexto.`);
+    console.log('[AI DEBUG] Mensagens brutas coletadas:', finalMessages);
 
   return finalMessages;
 }

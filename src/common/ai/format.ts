@@ -16,10 +16,16 @@ export function formatConversationForPrompt(messages: StoredMessage[]): string {
       hour: '2-digit',
       minute: '2-digit'
     });
-    // Escapa aspas e barras invertidas no texto para evitar JSON inválido no prompt
     const text = msg.textRaw.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return `{ts:"${time}", author:"${author}", text:"${text}"}`;
   }).join(',\n');
 
-  return `[\n${transcript}\n]`;
+  const formattedString = `[\n${transcript}\n]`;
+
+  // --- LOG DE DEPURAÇÃO ---
+  console.log('[AI DEBUG] Formatação: A transcrição formatada para o prompt é a seguinte:');
+  console.log(formattedString);
+  // -------------------------
+
+  return formattedString;
 }
