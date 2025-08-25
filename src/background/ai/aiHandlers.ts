@@ -3,7 +3,7 @@
  */
 import { AiRequest, AiResult, AiError } from '../../common/ai/types';
 import { getAppSettings } from '../../common/storage/settings';
-import { getLastNMessages } from '../../background/ai/windowing';
+import { getLastNMessages } from './windowing';
 import { formatConversationForPrompt } from '../../common/ai/format';
 import { callGemini } from './geminiProvider';
 
@@ -27,8 +27,7 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
   try {
     const settings = await getAppSettings();
     
-    // A API Key não é mais necessária aqui, ela vive segura no servidor proxy.
-    // const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // Esta linha não é mais necessária
+    // A API Key não é mais usada aqui, pois ela vive segura no servidor proxy.
 
     const messages = await getLastNMessages(payload.conversationKey, settings.contextWindowSize);
     if (messages.length === 0) {
@@ -63,8 +62,7 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
 
     const fullPrompt = `${promptText}\n\nTranscrição:\n${formattedConversation}`;
 
-    // CORREÇÃO FINAL: A chamada para callGemini agora envia o nome do modelo (settings.aiModel),
-    // o prompt e o schema. A API Key foi completamente removida da chamada.
+    // CORREÇÃO: A chamada agora envia o nome do modelo (settings.aiModel), o prompt e o schema.
     const result = await callGemini(settings.aiModel, fullPrompt, schema);
 
     const tookMs = Date.now() - startTime;
