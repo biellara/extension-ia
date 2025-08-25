@@ -21,6 +21,6 @@ export default defineConfig({
     target: "es2022",
     sourcemap: true,
     minify: false,
-    emptyOutDir: true,
+    emptyOutDir: true
   },
 });

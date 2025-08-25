@@ -27,12 +27,7 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
   try {
     const settings = await getAppSettings();
     
-    // CORREÇÃO: Acessa a API key diretamente da variável de ambiente.
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("API Key do Gemini não encontrada. Verifique se o arquivo .env está configurado corretamente.");
-    }
+    // A API Key não é mais necessária aqui, ela vive no servidor proxy.
 
     const messages = await getLastNMessages(payload.conversationKey, settings.contextWindowSize);
     if (messages.length === 0) {
@@ -67,8 +62,9 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
 
     const fullPrompt = `${promptText}\n\nTranscrição:\n${formattedConversation}`;
 
-    // CORREÇÃO: Passa a apiKey obtida da variável de ambiente.
-    const result = await callGemini(apiKey, settings.aiModel, fullPrompt, schema);
+    // CORREÇÃO: A chamada para callGemini agora envia apenas o nome do modelo,
+    // o prompt e o schema. A API Key não é mais passada.
+    const result = await callGemini(settings.aiModel, fullPrompt, schema);
 
     const tookMs = Date.now() - startTime;
     const resultPayload: AiResult['payload'] = {

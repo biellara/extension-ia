@@ -1,53 +1,43 @@
-/**
- * @file Contém a lógica central para fazer chamadas à API do Google Gemini.
- */
-import { fetchViaOffscreen } from '../offscreenHelpers'; // Importa o helper do offscreen
+// src/background/ai/geminiProvider.ts
 
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+// URL do seu servidor Vercel (exemplo)
+const PROXY_API_URL = "https://extension-ia.vercel.app/api/gemini";
 
 interface GeminiResponse {
   candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
   usageMetadata?: { promptTokenCount: number; candidatesTokenCount: number; }
+  error?: { message: string }; // Para capturar erros da API do Google
 }
 
+// CORREÇÃO: A função não recebe mais 'apiKey' como argumento.
 export async function callGemini(
-  apiKey: string,
   model: string,
   prompt: string,
   responseSchema?: object
 ): Promise<{ data: any; tokensIn: number; tokensOut: number; }> {
 
-  const url = `${API_BASE_URL}/${model}:generateContent?key=${apiKey}`;
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      responseMimeType: responseSchema ? "application/json" : "text/plain",
-      ...(responseSchema && { responseSchema }),
-      temperature: 0.5,
-      topP: 0.95,
-      topK: 40,
-      maxOutputTokens: 1024,
-    },
-    safetySettings: [
-      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-    ],
-  };
+  console.log(`[Gemini Provider] Enviando requisição para o modelo: ${model} via Proxy`);
 
-  console.log(`[Gemini Provider] Enviando requisição para o modelo: ${model} via Offscreen`);
-
-  // CORREÇÃO: Usa o helper do offscreen em vez do fetch global para evitar o erro de CORS.
-  const result = await fetchViaOffscreen(url, {
+  const response = await fetch(PROXY_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }) as GeminiResponse;
+    // Envia os dados necessários para o seu servidor proxy
+    body: JSON.stringify({ model, prompt, responseSchema })
+  });
+
+  // Tenta analisar a resposta como JSON, mesmo que seja um erro
+  const result = await response.json() as GeminiResponse;
+
+  // Se a resposta não foi OK (ex: erro 500 do servidor) ou se a Gemini retornou um erro
+  if (!response.ok || result.error) {
+    console.error("[Gemini Provider] Resposta inválida do proxy ou da API:", result);
+    // Lança um erro com a mensagem vinda da API para um feedback mais claro
+    throw new Error(result.error?.message || "O servidor proxy retornou uma resposta inválida.");
+  }
 
   if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
-    console.error("[Gemini Provider] Resposta inválida da API:", result);
-    throw new Error("A API do Gemini retornou uma resposta vazia ou inválida.");
+    console.error("[Gemini Provider] Resposta da API sem 'candidates':", result);
+    throw new Error("A API do Gemini retornou uma resposta vazia ou em formato inesperado.");
   }
 
   const textResponse = result.candidates[0].content.parts[0].text;

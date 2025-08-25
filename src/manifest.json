@@ -4,8 +4,12 @@
   "version": "1.0.0",
   "description": "An extension designed to assist with online customer support using AI.",
 
-  "permissions": ["storage", "contextMenus", "downloads", "offscreen"],
-  "host_permissions": ["https://erp.iredinternet.com.br/*"],
+  "permissions": ["storage", "contextMenus", "downloads"],
+  "host_permissions": [
+    "https://erp.iredinternet.com.br/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://extension-ia.vercel.app/*"
+   ],
 
   "background": {
     "service_worker": "src/background/index.js",
@@ -32,17 +36,6 @@
       "css": ["src/content/overlay.css"],
       "run_at": "document_idle",
       "all_frames": true
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "src/content/overlay.css",
-        "offscreen.html"
-      ],
-      "matches": [
-        "https://erp.iredinternet.com.br/*"
-      ]
     }
   ]
 }
