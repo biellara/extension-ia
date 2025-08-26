@@ -17,7 +17,7 @@ export async function getOverlayUIState(): Promise<Partial<OverlayUIState>> {
     if (!chrome?.runtime?.id) return {};
     const result = await chrome.storage.local.get(OVERLAY_UI_STATE_KEY);
     return result[OVERLAY_UI_STATE_KEY] || {};
-  } catch (e) {
+  } catch (_e) {
     return {};
   }
 }
@@ -30,7 +30,7 @@ export async function saveOverlayUIState(
   try {
     if (!chrome?.runtime?.id) return;
     await chrome.storage.local.set({ [OVERLAY_UI_STATE_KEY]: mergedState });
-  } catch (e) {
+  } catch (_e) {
     // Silencia o erro
   }
 }

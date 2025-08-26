@@ -131,7 +131,6 @@ const App = () => {
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   
-  // Ref para distinguir clique de arrasto no modo minimizado
   const dragStartPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -142,19 +141,26 @@ const App = () => {
 
     getOverlayUIState().then(state => {
       if (chrome?.runtime?.id) {
-        setMinimized(state.minimized ?? true);
+        // --- CORREÇÃO APLICADA AQUI ---
+        const isMinimized = state.minimized ?? true;
+        setMinimized(isMinimized);
+        // --- FIM DA CORREÇÃO ---
+
         if (state.size) setSize(state.size);
         if (!state.hasBeenMoved) {
           const margin = 20;
-          const initialX = window.innerWidth - (minimized ? 48 : (state.size?.width || 280)) - margin;
-          const initialY = window.innerHeight - (minimized ? 48 : (state.size?.height || 480)) - margin;
+          // --- CORREÇÃO APLICADA AQUI ---
+          // Usando a variável 'isMinimized' em vez do estado 'minimized'
+          const initialX = window.innerWidth - (isMinimized ? 48 : (state.size?.width || 280)) - margin;
+          const initialY = window.innerHeight - (isMinimized ? 48 : (state.size?.height || 480)) - margin;
+          // --- FIM DA CORREÇÃO ---
           setPos({ x: initialX, y: initialY });
         } else {
           setPos(state.pos ?? {x: 0, y: 0});
         }
       }
     });
-  }, []);
+  }, []); // O array de dependências vazio agora está correto
 
   const toggleTheme = () => {
     const newIsDarkMode = !isDarkMode;
@@ -259,10 +265,8 @@ const App = () => {
   }, [status.conversationKey]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // Ignora o clique em botões, links, etc.
     if ((e.target as HTMLElement).closest('button, a, input, label, .echo-overlay-resize-handle')) return;
     
-    // Guarda a posição inicial para o teste de clique vs. arrasto
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     
     setIsDragging(true);
@@ -292,7 +296,7 @@ const App = () => {
     overlayRef.current.style.top = `${newY}px`;
   }, [isDragging]);
 
-  const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+  const handleMouseUp = useCallback((_e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
     if (!isDragging) return;
     
     setIsDragging(false);
@@ -307,11 +311,9 @@ const App = () => {
     }
   }, [isDragging]);
 
-  // Handler de clique para o modo minimizado
   const handleMinimizedMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     const dx = Math.abs(e.clientX - dragStartPos.current.x);
     const dy = Math.abs(e.clientY - dragStartPos.current.y);
-    // Se o mouse moveu menos de 5px, considera um clique
     if (dx < 5 && dy < 5) {
       toggleMinimize();
     }
