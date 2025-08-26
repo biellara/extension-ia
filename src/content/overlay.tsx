@@ -16,6 +16,19 @@ import {
 import { AiResult } from '../common/ai/types';
 import './overlay.css';
 
+// --- Ícone para o modo minimizado ---
+const MinimizedIcon = ({ statusState }: { statusState: string }) => (
+  <div className="echo-minimized-icon-wrapper">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="echo-minimized-icon">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7.5 11.5C8.5 10.5 10.5 10.5 11.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M10.5 8.5C12.5 6.5 15.5 6.5 17.5 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+    <div className={`echo-status-indicator ${statusState}`} />
+  </div>
+);
+
+
 // --- Subcomponentes para Renderizar Resultados da IA ---
 
 type SummaryData = {
@@ -112,24 +125,98 @@ const App = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult['payload'] | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const [size, setSize] = useState({ width: 280, height: 480 });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  
+  // Ref para distinguir clique de arrasto no modo minimizado
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
+    const savedTheme = localStorage.getItem('echo-theme');
+    if (savedTheme === 'dark') setIsDarkMode(true);
+
     if (!chrome?.runtime?.id) return;
 
     getOverlayUIState().then(state => {
       if (chrome?.runtime?.id) {
-        setMinimized(state.minimized);
+        setMinimized(state.minimized ?? true);
+        if (state.size) setSize(state.size);
         if (!state.hasBeenMoved) {
           const margin = 20;
-          const widgetSize = 50;
-          const initialX = window.innerWidth - widgetSize - margin;
-          const initialY = window.innerHeight - widgetSize - margin;
+          const initialX = window.innerWidth - (minimized ? 48 : (state.size?.width || 280)) - margin;
+          const initialY = window.innerHeight - (minimized ? 48 : (state.size?.height || 480)) - margin;
           setPos({ x: initialX, y: initialY });
         } else {
-          setPos(state.pos);
+          setPos(state.pos ?? {x: 0, y: 0});
         }
       }
     });
+  }, []);
+
+  const toggleTheme = () => {
+    const newIsDarkMode = !isDarkMode;
+    setIsDarkMode(newIsDarkMode);
+    localStorage.setItem('echo-theme', newIsDarkMode ? 'dark' : 'light');
+  };
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    const overlay = overlayRef.current;
+    if (overlay) {
+      resizeStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        width: overlay.offsetWidth,
+        height: overlay.offsetHeight,
+      };
+      document.body.style.cursor = 'nwse-resize';
+      document.body.style.userSelect = 'none';
+    }
+  }, []);
+
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !overlayRef.current) return;
+    const dx = e.clientX - resizeStartRef.current.x;
+    const dy = e.clientY - resizeStartRef.current.y;
+
+    const newWidth = Math.max(250, resizeStartRef.current.width + dx);
+    const newHeight = Math.max(200, resizeStartRef.current.height + dy);
+
+    overlayRef.current.style.width = `${newWidth}px`;
+    overlayRef.current.style.height = `${newHeight}px`;
+  }, [isResizing]);
+
+  const handleResizeMouseUp = useCallback(() => {
+    if (!isResizing) return;
+    setIsResizing(false);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    const overlay = overlayRef.current;
+    if (overlay) {
+      const finalSize = { width: overlay.offsetWidth, height: overlay.offsetHeight };
+      setSize(finalSize);
+      saveOverlayUIState({ size: finalSize });
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResizeMouseMove);
+      window.addEventListener('mouseup', handleResizeMouseUp, { once: true });
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleResizeMouseMove);
+      window.removeEventListener('mouseup', handleResizeMouseUp);
+    };
+  }, [isResizing, handleResizeMouseMove, handleResizeMouseUp]);
+
+  useEffect(() => {
+    if (!chrome?.runtime?.id) return;
 
     const port = chrome.runtime.connect({ name: 'overlay' });
     port.onMessage.addListener(message => {
@@ -139,17 +226,12 @@ const App = () => {
     safeSendMessage({ type: MSG_GET_STATUS });
     
     const messageListener = (message: unknown) => {
-      if (
-        typeof message === 'object' &&
-        message !== null &&
-        'type' in message
-      ) {
+      if (typeof message === 'object' && message !== null && 'type' in message) {
         const msg = message as { type: string; payload?: unknown };
         if (msg.type === CS_SHOW_OVERLAY) {
           setMinimized(false);
           saveOverlayUIState({ minimized: false });
-        }
-        else if (msg.type === AI_RESULT) {
+        } else if (msg.type === AI_RESULT) {
           const payload = msg.payload as { conversationKey?: string };
           if (payload && payload.conversationKey === status.conversationKey) {
             setAiResult(msg.payload as AiResult['payload']);
@@ -177,7 +259,11 @@ const App = () => {
   }, [status.conversationKey]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button, a, input, label')) return;
+    // Ignora o clique em botões, links, etc.
+    if ((e.target as HTMLElement).closest('button, a, input, label, .echo-overlay-resize-handle')) return;
+    
+    // Guarda a posição inicial para o teste de clique vs. arrasto
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
     
     setIsDragging(true);
     const overlay = overlayRef.current;
@@ -206,7 +292,7 @@ const App = () => {
     overlayRef.current.style.top = `${newY}px`;
   }, [isDragging]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
     if (!isDragging) return;
     
     setIsDragging(false);
@@ -220,6 +306,16 @@ const App = () => {
       saveOverlayUIState({ pos: finalPos, hasBeenMoved: true });
     }
   }, [isDragging]);
+
+  // Handler de clique para o modo minimizado
+  const handleMinimizedMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    const dx = Math.abs(e.clientX - dragStartPos.current.x);
+    const dy = Math.abs(e.clientY - dragStartPos.current.y);
+    // Se o mouse moveu menos de 5px, considera um clique
+    if (dx < 5 && dy < 5) {
+      toggleMinimize();
+    }
+  };
 
   useEffect(() => {
     if (isDragging) {
@@ -275,21 +371,34 @@ const App = () => {
 
   const latestTime = status.latestTimestamp ? new Date(status.latestTimestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
 
+  const overlayClassName = `echo-overlay ${isDarkMode ? 'dark-theme' : ''} ${minimized ? 'minimized' : ''}`;
+
   if (minimized) {
     return (
       <div
         ref={overlayRef}
-        className="echo-overlay minimized"
+        className={overlayClassName}
         style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
-        onClick={toggleMinimize}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMinimizedMouseUp}
+        title="Echo AI"
       >
-        <div className={`echo-status-indicator ${status.state || 'idle'}`} />
+        <MinimizedIcon statusState={status.state || 'idle'} />
       </div>
     );
   }
 
   return (
-    <div ref={overlayRef} className="echo-overlay" style={{ left: `${pos.x}px`, top: `${pos.y}px` }}>
+    <div
+      ref={overlayRef}
+      className={overlayClassName}
+      style={{
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: `${size.width}px`,
+        height: `${size.height}px`,
+      }}
+    >
       <div className="echo-overlay-header" onMouseDown={handleMouseDown}>
         <div className="echo-overlay-title-wrapper">
           <div className={`echo-status-indicator ${status.state || 'idle'}`} />
@@ -327,13 +436,16 @@ const App = () => {
         </div>
       </div>
       <div className="echo-overlay-footer">
+        <button onClick={toggleTheme} className="echo-overlay-button" style={{fontSize: '14px'}}>
+            {isDarkMode ? '☀️' : '🌙'}
+        </button>
         <a href="#" onClick={openOptions}>⚙ Configurações</a>
       </div>
+      <div className="echo-overlay-resize-handle" onMouseDown={handleResizeMouseDown}></div>
     </div>
   );
 };
 
-// CORREÇÃO: Adicionado try...catch para garantir que erros de renderização sejam visíveis.
 try {
   if (!document.getElementById('echo-overlay-root')) {
     const rootEl = document.createElement('div');

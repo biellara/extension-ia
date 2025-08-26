@@ -1,39 +1,98 @@
+/* --- DEFINIÇÃO DE VARIÁVEIS DE TEMA --- */
+:root {
+  /* Tema Claro (Padrão) */
+  --bg-primary: white;
+  --bg-secondary: #f7f7f7;
+  --bg-tertiary: #f0f0f0;
+  --text-primary: #333;
+  --text-secondary: #555;
+  --border-primary: #e0e0e0;
+  --border-secondary: #ccc;
+  --accent-primary: #007bff;
+  --accent-secondary: #0052cc;
+  --accent-bg: #e7f3ff;
+  --accent-border: #99c7ff;
+  --error-bg: #f8d7da;
+  --error-text: #721c24;
+  --error-border: #f5c6cb;
+  --shadow-color: rgba(0, 0, 0, 0.15);
+  --scrollbar-track: #f1f1f1;
+  --scrollbar-thumb: #ccc;
+  --scrollbar-thumb-hover: #aaa;
+}
+
+.dark-theme {
+  /* Tema Escuro */
+  --bg-primary: #2d2d2d;
+  --bg-secondary: #3c3c3c;
+  --bg-tertiary: #4a4a4a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --border-primary: #555;
+  --border-secondary: #666;
+  --accent-primary: #58a6ff;
+  --accent-secondary: #79c0ff;
+  --accent-bg: #223344;
+  --accent-border: #388bfd;
+  --error-bg: #4d1f24;
+  --error-text: #f8d7da;
+  --error-border: #721c24;
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --scrollbar-track: #4a4a4a;
+  --scrollbar-thumb: #666;
+  --scrollbar-thumb-hover: #888;
+}
+/* --- FIM DAS VARIÁVEIS --- */
+
+
 /* Estilos para o overlay flutuante no ERP */
 .echo-overlay {
   position: fixed;
   z-index: 2147483646;
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--shadow-color);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  width: 280px;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
-  /* TRANSIÇÕES: Suaviza a mudança de tamanho e opacidade ao minimizar/expandir */
-  transition: width 0.2s ease-in-out, height 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition: opacity 0.2s ease-in-out;
   opacity: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 250px;
+  min-height: 200px;
+  box-sizing: border-box; /* Garante que padding/border não afetem o tamanho final */
 }
 
-/* Estilo para o modo arrastando: remove transições de posição para fluidez */
+/* Estilo para o modo arrastando: remove transições para fluidez */
 .echo-overlay.dragging {
-  transition: none;
-  opacity: 0.85;
+  transition: none !important;
   cursor: grabbing;
 }
 
 .echo-overlay.minimized {
-  width: 50px;
-  height: 50px;
-  cursor: pointer;
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 8px;
+  cursor: grab;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease-in-out;
+  min-height: 0;
+  /* --- CORREÇÃO: Garante que o padding não interfira no tamanho --- */
+  padding: 0; 
+}
+
+.echo-overlay.minimized:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px var(--shadow-color);
 }
 
 .echo-overlay-header {
   padding: 8px 12px;
-  background-color: #f7f7f7;
-  border-bottom: 1px solid #e0e0e0;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
   cursor: grab;
   display: flex;
   justify-content: space-between;
@@ -68,11 +127,13 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1; 
+  overflow-y: auto;
 }
 
 .echo-overlay-status-line, .echo-overlay-conversation-line {
   font-size: 13px;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .echo-overlay-actions {
@@ -80,20 +141,21 @@
   justify-content: space-between;
   align-items: center;
   margin-top: 8px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-primary);
   padding-top: 10px;
 }
 
 .echo-overlay-button {
-  background: #f0f0f0;
-  border: 1px solid #ccc;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
   font-size: 12px;
 }
 .echo-overlay-button:hover {
-  background: #e0e0e0;
+  filter: brightness(0.9);
 }
 
 .echo-overlay-switch {
@@ -109,12 +171,15 @@
 
 .echo-overlay-footer {
   padding: 8px 12px;
-  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-primary);
 }
 
 .echo-overlay-footer a {
   font-size: 12px;
-  color: #007bff;
+  color: var(--accent-primary);
   text-decoration: none;
 }
 .echo-overlay-footer a:hover {
@@ -122,7 +187,7 @@
 }
 
 .echo-overlay-ia-section {
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-primary);
   margin-top: 10px;
   padding-top: 10px;
 }
@@ -134,9 +199,9 @@
 }
 
 .echo-overlay-ia-actions button {
-  background-color: #e7f3ff;
-  border: 1px solid #99c7ff;
-  color: #0052cc;
+  background-color: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-secondary);
   font-weight: 500;
   border-radius: 4px;
   padding: 5px 10px;
@@ -145,7 +210,7 @@
 }
 
 .echo-overlay-ia-actions button:hover:not(:disabled) {
-  background-color: #d0e7ff;
+  filter: brightness(0.9);
 }
 
 .echo-overlay-ia-actions button:disabled {
@@ -161,13 +226,13 @@
 }
 
 .ai-loading {
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .ai-error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
 }
 
 .ai-result {
@@ -183,15 +248,15 @@
 .ai-result-section h3 {
   font-size: 15px;
   margin: 0 0 10px 0;
-  color: #0052cc;
-  border-bottom: 1px solid #e0e0e0;
+  color: var(--accent-secondary);
+  border-bottom: 1px solid var(--border-primary);
   padding-bottom: 6px;
 }
 
 .ai-result-section h4 {
   font-size: 13px;
   margin: 10px 0 5px 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .ai-result-section ul {
@@ -202,8 +267,8 @@
 }
 
 .suggestion-card {
-  background-color: #f9f9f9;
-  border: 1px solid #e0e0e0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   padding: 10px;
   margin-bottom: 10px;
@@ -222,14 +287,15 @@
 
 .copy-button {
   background: none;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
   border-radius: 4px;
   font-size: 11px;
   padding: 2px 6px;
   cursor: pointer;
 }
 .copy-button:hover {
-  background-color: #eee;
+  background-color: var(--bg-tertiary);
 }
 
 .suggestion-card p {
@@ -244,4 +310,57 @@
   gap: 6px 12px;
   font-size: 13px;
   align-items: center;
+}
+
+.echo-overlay-body::-webkit-scrollbar {
+  width: 8px;
+}
+.echo-overlay-body::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 10px;
+}
+.echo-overlay-body::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+}
+.echo-overlay-body::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.echo-overlay-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  z-index: 10;
+  opacity: 0.6;
+}
+
+/* --- Estilos para o ícone minimizado --- */
+.echo-minimized-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-secondary);
+}
+
+.echo-minimized-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.echo-minimized-icon-wrapper .echo-status-indicator {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--bg-primary);
+}
+.echo-minimized-icon-wrapper:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px var(--shadow-color);
 }

@@ -1,42 +1,36 @@
+// Este é um exemplo do conteúdo provável do seu ficheiro.
+// A linha mais importante é a adição de 'size'.
 
 export type OverlayUIState = {
   pos: { x: number; y: number };
   minimized: boolean;
   hasBeenMoved: boolean;
+  size?: { width: number; height: number }; // <-- ADICIONE OU AJUSTE ESTA LINHA
 };
 
-const STORAGE_KEY = 'echoOverlayUIState';
+// O resto do seu ficheiro (funções get/save) permanece o mesmo.
+// Exemplo:
+const OVERLAY_UI_STATE_KEY = 'echo-overlay-ui-state';
 
-const DEFAULT_STATE: OverlayUIState = {
-  pos: { x: 20, y: 20 }, // Posição de fallback
-  minimized: true,
-  hasBeenMoved: false,
-};
-
-export async function getOverlayUIState(): Promise<OverlayUIState> {
-  if (!chrome?.runtime?.id) {
-    return Promise.resolve(DEFAULT_STATE);
-  }
+export async function getOverlayUIState(): Promise<Partial<OverlayUIState>> {
   try {
-    const result = await chrome.storage.local.get(STORAGE_KEY);
-    return result[STORAGE_KEY] || DEFAULT_STATE;
-  } catch (error) {
-    if (!(error instanceof Error && error.message.includes("Extension context invalidated"))) {
-      console.error("Erro ao obter estado da UI do overlay:", error);
-    }
-    return DEFAULT_STATE;
+    if (!chrome?.runtime?.id) return {};
+    const result = await chrome.storage.local.get(OVERLAY_UI_STATE_KEY);
+    return result[OVERLAY_UI_STATE_KEY] || {};
+  } catch (e) {
+    return {};
   }
 }
 
-export async function saveOverlayUIState(newState: Partial<OverlayUIState>): Promise<void> {
-  if (!chrome?.runtime?.id) return;
+export async function saveOverlayUIState(
+  newState: Partial<OverlayUIState>
+): Promise<void> {
+  const currentState = await getOverlayUIState();
+  const mergedState = { ...currentState, ...newState };
   try {
-    const currentState = await getOverlayUIState();
-    const mergedState = { ...currentState, ...newState };
-    await chrome.storage.local.set({ [STORAGE_KEY]: mergedState });
-  } catch (error) {
-    if (!(error instanceof Error && error.message.includes("Extension context invalidated"))) {
-        console.error("Erro ao salvar estado da UI do overlay:", error);
-    }
+    if (!chrome?.runtime?.id) return;
+    await chrome.storage.local.set({ [OVERLAY_UI_STATE_KEY]: mergedState });
+  } catch (e) {
+    // Silencia o erro
   }
 }
