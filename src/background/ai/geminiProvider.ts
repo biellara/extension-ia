@@ -1,5 +1,5 @@
 // IMPORTANTE: Substitua pela URL do seu servidor Vercel.
-const PROXY_API_URL = "https://extension-ia-one.vercel.app/api/gemini";
+const PROXY_API_URL = "https://echo-extension.vercel.app/api/gemini";
 
 interface GeminiResponse {
   candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
