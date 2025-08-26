@@ -1,14 +1,6 @@
-/**
- * @file Formata um array de mensagens para um formato de texto compacto,
- * ideal para ser incluído em um prompt de IA.
- */
+
 import { StoredMessage } from "../types/models";
 
-/**
- * Converte um array de mensagens em uma string de transcrição compacta.
- * @param messages Array de mensagens salvas.
- * @returns Uma string formatada representando a conversa.
- */
 export function formatConversationForPrompt(messages: StoredMessage[]): string {
   const transcript = messages.map(msg => {
     const author = msg.authorType === 'agent' ? 'atendente' : 'cliente';
@@ -21,11 +13,6 @@ export function formatConversationForPrompt(messages: StoredMessage[]): string {
   }).join(',\n');
 
   const formattedString = `[\n${transcript}\n]`;
-
-  // --- LOG DE DEPURAÇÃO ---
-  console.log('[AI DEBUG] Formatação: A transcrição formatada para o prompt é a seguinte:');
-  console.log(formattedString);
-  // -------------------------
 
   return formattedString;
 }

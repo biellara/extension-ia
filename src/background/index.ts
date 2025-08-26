@@ -18,7 +18,6 @@ import { processMessageBatch, clearConversationData } from "../common/storage/st
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
 import { handleAiRequest } from "../background/ai/aiHandlers"; // Importa o handler de IA
 
-console.log("[BG] Service Worker iniciado.");
 
 type AppState = {
   state: 'idle' | 'observing' | 'paused';
@@ -65,13 +64,10 @@ chrome.runtime.onConnect.addListener(port => {
   if (port.name === "overlay" && port.sender?.tab?.id) {
     const tabId = port.sender.tab.id;
     activePorts[tabId] = port;
-    console.log(`[BG] Overlay conectado na aba ${tabId}`);
 
     port.onDisconnect.addListener(() => {
       delete activePorts[tabId];
-      console.log(`[BG] Overlay desconectado da aba ${tabId}`);
       if (chrome.runtime.lastError) {
-         console.log(`[BG] onDisconnect lastError: ${chrome.runtime.lastError.message}`);
       }
     });
   }
@@ -80,14 +76,12 @@ chrome.runtime.onConnect.addListener(port => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
 
-  // CORREÇÃO: Ativa o roteamento para o handler de IA
   if (type === AI_SUMMARIZE || type === AI_SUGGEST || type === AI_CLASSIFY) {
     const tabId = payload?.tabId || sender.tab?.id;
     if (tabId) {
-      console.log(`[BG] Roteando a ação de IA '${type}' para o handler.`);
       handleAiRequest(message, tabId);
     }
-    return true; // Indica que a resposta será assíncrona
+    return true;
   }
   
   if (type === MSG_OPEN_OPTIONS_PAGE) {
@@ -97,7 +91,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (type === MSG_CLEAR_ALL_DATA) {
       chrome.storage.local.clear(() => {
-        console.log("[BG] Todos os dados foram apagados.");
         Object.keys(tabStates).forEach(id => {
             const tabIdNum = parseInt(id, 10);
             const state = tabStates[tabIdNum];

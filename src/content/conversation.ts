@@ -81,7 +81,6 @@ const emitChange = debounce(async () => {
     type: MSG_CS_CONVERSATION_CHANGE,
     payload: { conversationKey: key, header }
   });
-  console.log("[CS] conversation change →", key, header);
 }, 350);
 
 function parseMessageFromElement(item: Element): MessageData | null {
@@ -125,7 +124,6 @@ function collectMessages(): MessageData[] {
     }
   });
 
-  console.log(`[CS] Snapshot inicial: ${messages.length} mensagens coletadas.`);
   console.table(messages);
   return messages;
 }
@@ -133,7 +131,6 @@ function collectMessages(): MessageData[] {
 const sendNewMessages = debounce((newMessages: MessageData[]) => {
   if (newMessages.length === 0) return;
 
-  console.log(`[CS] Enviando ${newMessages.length} novas mensagens.`);
   safeSendMessage({
     type: MSG_CS_NEW_MESSAGES,
     payload: {
@@ -172,12 +169,8 @@ function startMessageObserver() {
 
   messageObserver = new MutationObserver(handleNewMessages);
   messageObserver.observe(messageList, { childList: true, subtree: false });
-  console.log("[CS] Observador de novas mensagens iniciado.");
 }
 
-/**
- * Nova função de espera por um elemento.
- */
 function waitForElement(selector: string, callback: () => void) {
   const interval = setInterval(() => {
     const element = document.querySelector(selector);
@@ -191,11 +184,8 @@ function waitForElement(selector: string, callback: () => void) {
 export function handleBackgroundMessages(message: Message, _sender: chrome.runtime.MessageSender, _sendResponse: (response?: unknown) => void) {
   if (message.type === MSG_BG_REQUEST_SNAPSHOT) {
     const payload = message.payload as { conversationKey: string };
-    console.log("[CS] Recebido pedido de snapshot do BG:", payload.conversationKey);
     
-    // Modificado para usar a função de espera
     waitForElement(selectors.messageList, () => {
-      console.log("[CS] Lista de mensagens pronta. Coletando snapshot.");
       const messages = collectMessages();
       safeSendMessage({
         type: MSG_CS_SNAPSHOT_RESULT,
@@ -225,7 +215,6 @@ export function startConversationWatcher() {
   const maxAttempts = 40;
   let attempts = 0;
 
-  console.log("[CS] Aguardando o headerContainer...");
 
   const intervalId = setInterval(() => {
     const headerNode = getHeaderEl();
@@ -233,7 +222,6 @@ export function startConversationWatcher() {
 
     if (headerNode) {
       clearInterval(intervalId);
-      console.log("[CS] headerContainer encontrado. Iniciando observador.");
       emitChange();
       attachHeaderObserver(headerNode);
     } else if (attempts >= maxAttempts) {

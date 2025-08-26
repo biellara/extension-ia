@@ -1,6 +1,4 @@
-/**
- * @file Busca as últimas N mensagens de uma conversa no storage.
- */
+
 import { ConversationMeta, StoredMessage } from "../../common/types/models";
 
 async function loadData<T>(key: string, defaultValue: T): Promise<T> {
@@ -8,12 +6,6 @@ async function loadData<T>(key: string, defaultValue: T): Promise<T> {
   return result[key] || defaultValue;
 }
 
-/**
- * Coleta as últimas N mensagens de uma conversa, lendo os chunks de trás para frente.
- * @param conversationKey A chave da conversa.
- * @param n O número de mensagens a serem retornadas.
- * @returns Um array com as últimas N mensagens, em ordem cronológica (ascendente).
- */
 export async function getLastNMessages(conversationKey: string, n: number): Promise<StoredMessage[]> {
   const metaKey = `conv:${conversationKey}:meta`;
   const meta = await loadData<ConversationMeta | null>(metaKey, null);
@@ -28,15 +20,11 @@ export async function getLastNMessages(conversationKey: string, n: number): Prom
   while (messages.length < n && chunksToRead > 0) {
     const chunkKey = `conv:${conversationKey}:chunk:${String(chunksToRead).padStart(4, "0")}`;
     const chunk = await loadData<StoredMessage[]>(chunkKey, []);
-    messages = [...chunk, ...messages]; // Adiciona no início para manter a ordem
+    messages = [...chunk, ...messages]; 
     chunksToRead--;
   }
 
-  // Pega apenas as últimas N mensagens e garante a ordem ascendente
   const finalMessages = messages.slice(-n);
-
-    console.log(`[AI DEBUG] Windowing: Foram buscadas ${finalMessages.length} de ${meta.messageCount} mensagens para o contexto.`);
-    console.log('[AI DEBUG] Mensagens brutas coletadas:', finalMessages);
 
   return finalMessages;
 }

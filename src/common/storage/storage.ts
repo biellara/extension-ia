@@ -61,17 +61,13 @@ async function applyRetention(
   // TODO: Implementar retenção por tempo (ex: 7 dias) em um passo futuro.
 
   if (chunksToDelete.length > 0) {
-    // Não logamos o conteúdo, apenas a ação
-    console.log(`[BG Retention] Apagando ${chunksToDelete.length} chunks e ${messagesDeletedCount} mensagens por exceder o limite de ${settings.messageLimit}.`);
     await removeData(chunksToDelete);
     meta.messageCount = totalMessages;
-    // Idealmente, os chunks seriam renumerados, mas para simplicidade, mantemos assim.
   }
 
   return meta;
 }
 
-// --- Funções Principais de Gerenciamento de Dados ---
 
 function toLocalISO(timeStr: string): string {
   const now = new Date();
@@ -150,15 +146,9 @@ export async function processMessageBatch(
   const updatedMeta = await applyRetention(conversationKey, meta);
   await saveData(metaKey, updatedMeta);
 
-  // Log sem dados sensíveis
-  console.log(`[BG Storage] ${newMessages.length} novas mensagens salvas para ${conversationKey}. Total: ${updatedMeta.messageCount}`);
   return updatedMeta;
 }
 
-/**
- * Apaga todos os dados associados a uma única conversa.
- * @param conversationKey A chave da conversa a ser apagada.
- */
 export async function clearConversationData(conversationKey: string): Promise<void> {
   if (!conversationKey) return;
 
@@ -172,5 +162,4 @@ export async function clearConversationData(conversationKey: string): Promise<vo
   }
 
   await removeData(keysToDelete);
-  console.log(`[BG] Dados da conversa ${conversationKey} foram apagados.`);
 }

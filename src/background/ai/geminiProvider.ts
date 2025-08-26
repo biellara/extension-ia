@@ -12,7 +12,6 @@ export async function callGemini(
   prompt: string,
   responseSchema?: object
 ): Promise<{ data: any; tokensIn: number; tokensOut: number; }> {
-  console.log(`[Gemini Provider] Enviando requisição para o modelo: ${model} via Proxy`);
 
   const response = await fetch(PROXY_API_URL, {
     method: 'POST',
