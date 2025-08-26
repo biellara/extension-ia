@@ -1,30 +1,40 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Chave da API do Gemini, lida das variáveis de ambiente
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Lista de origens que podem fazer requisições para esta API
+// Lista de origens que podem fazer requisições para esta API.
+// É crucial para a segurança e para o funcionamento de extensões.
 const ALLOWED_ORIGINS = [
   'chrome-extension://jaegpgibeikncjfncollpkpepmmcdgha',
-  // Adicione aqui a URL do seu ambiente de desenvolvimento se precisar
+  // Adicione aqui a URL do seu ambiente de desenvolvimento se precisar, ex:
   // 'http://localhost:5173' 
 ];
 
-// Função para adicionar os headers CORS à resposta
+/**
+ * Middleware para lidar com CORS.
+ * Verifica se a origem da requisição está na lista de permitidas.
+ */
 const allowCors = (fn: (req: VercelRequest, res: VercelResponse) => Promise<void>) => async (req: VercelRequest, res: VercelResponse) => {
   const origin = req.headers.origin;
   console.log(`Requisição recebida da origem: ${origin}`); // Log para debug
 
-  // Verifica se a origem da requisição está na lista de permitidas
+  // Se a origem estiver na lista de permitidas, reflete a origem na resposta.
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin'); // Informa aos caches que a resposta varia com a origem
+    res.setHeader('Vary', 'Origin'); // Importante para caches
+  } else if (!origin) {
+    // Permite requisições sem o header 'Origin', como as do Postman ou de servidor para servidor.
+    console.log('Requisição sem header de Origem permitida.');
   } else {
+    // Bloqueia e avisa sobre origens não permitidas.
     console.warn(`Origem não permitida tentou acessar: ${origin}`);
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
+  // Responde imediatamente a requisições OPTIONS (preflight)
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -32,10 +42,11 @@ const allowCors = (fn: (req: VercelRequest, res: VercelResponse) => Promise<void
   return await fn(req, res);
 };
 
+/**
+ * Handler principal da função serverless.
+ */
 const handler = async (request: VercelRequest, response: VercelResponse): Promise<void> => {
-  // Adicionando logs para diagnóstico
   console.log(`Recebida requisição com método: ${request.method}`);
-  console.log('Corpo da requisição:', JSON.stringify(request.body, null, 2));
 
   if (request.method !== 'POST') {
     response.status(405).json({ error: { message: 'Método não permitido. Apenas POST é aceito.' } });
@@ -49,6 +60,7 @@ const handler = async (request: VercelRequest, response: VercelResponse): Promis
   }
 
   const { model, prompt, responseSchema } = request.body;
+  console.log('Corpo da requisição:', JSON.stringify(request.body, null, 2));
 
   if (!model || !prompt) {
     console.error("ERRO: Requisição inválida. 'model' e 'prompt' são obrigatórios.");
@@ -87,9 +99,8 @@ const handler = async (request: VercelRequest, response: VercelResponse): Promis
     try {
       data = JSON.parse(responseText);
     } catch (e) {
-      console.error("Erro ao fazer parse da resposta do Gemini como JSON.");
-      data = { error: { message: 'Resposta inválida da API do Gemini', rawResponse: responseText } };
-      response.status(500).json(data);
+      console.error("Erro ao fazer parse da resposta do Gemini como JSON.", responseText);
+      response.status(500).json({ error: { message: 'Resposta inválida da API do Gemini', rawResponse: responseText } });
       return;
     }
 
@@ -101,5 +112,5 @@ const handler = async (request: VercelRequest, response: VercelResponse): Promis
   }
 };
 
-// Alterado de 'export default' para 'module.exports' para compatibilidade com o ambiente da Vercel
-module.exports = allowCors(handler);
+// Usa 'export default' para ser compatível com "type": "module" no package.json
+export default allowCors(handler);

@@ -2,6 +2,7 @@
   "name": "echo",
   "version": "1.0",
   "private": true,
+  "type": "module",
   "description": "An extension designed to assist with online customer support using artificial intelligence (AI).",
   "directories": {
     "doc": "docs"
