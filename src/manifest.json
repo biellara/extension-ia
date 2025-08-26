@@ -8,7 +8,7 @@
   "host_permissions": [
     "https://erp.iredinternet.com.br/*",
     "https://generativelanguage.googleapis.com/*",
-    "https://extension-ia.vercel.app/*"
+    "https://echo-extension.vercel.app/*"
    ],
 
   "background": {

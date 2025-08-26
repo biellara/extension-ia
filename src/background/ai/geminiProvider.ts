@@ -9,7 +9,7 @@ const PROXY_API_URL =
     (import.meta as any).env &&
     (import.meta as any).env.VITE_PROXY_API_URL) ||
   // 👉 Ajuste para o seu domínio Vercel + rota do proxy criada anteriormente
-  "https://echo-three-omega.vercel.app/api/gemini";
+  "https://echo-extension.vercel.app/api/gemini";
 
 // Tipos de I/O genéricos (tolerantes a variações de payload)
 type MaybeZodSchema =
