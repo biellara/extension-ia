@@ -1,130 +1,50 @@
-// api/ai/proxy.ts
-// Proxy simples para IA (Gemini). Suporta CORS e OPTIONS (preflight).
+// Usa a sintaxe require para importar os tipos, compatível com CommonJS
+const { VercelRequest, VercelResponse } = require('@vercel/node');
 
-type GenerateRequest = {
-  prompt: string;
-  system?: string;
-  model?: string; // ex: "gemini-1.5-flash"
-  temperature?: number;
-  maxOutputTokens?: number;
-};
+// Lê a variável de ambiente configurada na Vercel
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const ALLOWED_ORIGINS = [
-  // Coloque o ID da sua extensão para mais segurança
-  // "chrome-extension://abcdefghijklmnopabcdefghijklmnop",
-  "*", // durante desenvolvimento; troque por origin específico em produção
-];
+// Usa module.exports para exportar a função, em vez de 'export default'
+module.exports = async (request: typeof VercelRequest, response: typeof VercelResponse) => {
+  if (request.method !== 'POST') {
+    return response.status(405).json({ error: { message: 'Método não permitido.' } });
+  }
 
-function corsHeaders(origin: string | null) {
-  const allowOrigin =
-    origin &&
-    (ALLOWED_ORIGINS.includes("*") || ALLOWED_ORIGINS.includes(origin))
-      ? origin
-      : ALLOWED_ORIGINS.includes("*")
-        ? "*"
-        : (ALLOWED_ORIGINS[0] ?? "*");
+  if (!GEMINI_API_KEY) {
+    console.error("ERRO: A variável de ambiente GEMINI_API_KEY não foi encontrada.");
+    return response.status(500).json({ error: { message: "A API Key do servidor não está configurada." } });
+  }
 
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Max-Age": "86400",
+  const { model, prompt, responseSchema } = request.body;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+  const geminiPayload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: responseSchema ? "application/json" : "text/plain",
+      ...(responseSchema && { responseSchema }),
+      temperature: 0.5,
+    },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ],
   };
-}
-
-export default async function handler(req: any, res: any) {
-  const origin = (req.headers?.origin as string) || null;
-
-  // Preflight
-  if (req.method === "OPTIONS") {
-    res.setHeader("Vary", "Origin");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Private-Network", "true"); // MV3 em alguns cenários
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
-    );
-    const headers = corsHeaders(origin);
-    Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v as string));
-    res.status(204).end();
-    return;
-  }
-
-  if (req.method !== "POST") {
-    const headers = corsHeaders(origin);
-    Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v as string));
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
 
   try {
-    const { prompt, system, model, temperature, maxOutputTokens } =
-      (req.body as GenerateRequest) || {};
-    if (!prompt || typeof prompt !== "string") {
-      const headers = corsHeaders(origin);
-      Object.entries(headers).forEach(([k, v]) =>
-        res.setHeader(k, v as string)
-      );
-      res.status(400).json({ error: "Missing 'prompt' (string)" });
-      return;
-    }
-
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      const headers = corsHeaders(origin);
-      Object.entries(headers).forEach(([k, v]) =>
-        res.setHeader(k, v as string)
-      );
-      res
-        .status(500)
-        .json({ error: "Server misconfigured: GEMINI_API_KEY not set" });
-      return;
-    }
-
-    const chosenModel = model || "gemini-1.5-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-      chosenModel
-    )}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
-
-    const payload = {
-      contents: [
-        ...(system
-          ? [{ role: "user", parts: [{ text: `(system) ${system}` }] }]
-          : []),
-        { role: "user", parts: [{ text: prompt }] },
-      ],
-      generationConfig: {
-        temperature: typeof temperature === "number" ? temperature : 0.7,
-        maxOutputTokens:
-          typeof maxOutputTokens === "number" ? maxOutputTokens : 1024,
-      },
-    };
-
-    const upstream = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    const geminiResponse = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiPayload),
     });
 
-    const data = await upstream.json();
+    const data = await geminiResponse.json();
+    return response.status(geminiResponse.status).json(data);
 
-    const text =
-      data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ??
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-      "";
-
-    const headers = corsHeaders(origin);
-    Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v as string));
-    res.status(200).json({
-      model: chosenModel,
-      output: text,
-      raw: data, // se não quiser expor, remova esta linha
-    });
-  } catch (err: any) {
-    const headers = corsHeaders(origin);
-    Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v as string));
-    res.status(500).json({ error: err?.message || "Internal error" });
+  } catch (error) {
+    console.error("ERRO CRÍTICO: Falha ao fazer a chamada fetch para a API do Gemini.", error);
+    return response.status(500).json({ error: { message: 'Falha de comunicação com a API do Gemini.' } });
   }
-}
+};
