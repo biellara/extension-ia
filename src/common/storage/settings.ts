@@ -37,17 +37,12 @@ export async function getAppSettings(): Promise<AppSettings> {
   }
 }
 
-/**
- * Salva as configurações da extensão no storage.
- * @param {Partial<AppSettings>} newSettings - As novas configurações a serem salvas.
- */
 export async function saveAppSettings(newSettings: Partial<AppSettings>): Promise<void> {
   if (!chrome?.runtime?.id) return;
   try {
     const currentSettings = await getAppSettings();
     const mergedSettings = { ...currentSettings, ...newSettings };
     await chrome.storage.local.set({ [STORAGE_KEY]: mergedSettings });
-    console.log("[BG] Configurações salvas:", mergedSettings);
   } catch (error) {
     console.error("Erro ao salvar as configurações da aplicação:", error);
   }

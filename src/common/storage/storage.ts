@@ -8,7 +8,7 @@ async function loadData<T>(key: string, defaultValue: T): Promise<T> {
     if (!chrome?.runtime?.id) return defaultValue;
     const result = await chrome.storage.local.get(key);
     return result[key] || defaultValue;
-  } catch (e) {
+  } catch (_e) {
     return defaultValue;
   }
 }
@@ -17,8 +17,7 @@ async function saveData(key: string, value: unknown): Promise<void> {
   try {
     if (!chrome?.runtime?.id) return;
     return await chrome.storage.local.set({ [key]: value });
-  } catch (e) {
-    // Silencia o erro de contexto invalidado
+  } catch (_e) {
   }
 }
 
@@ -26,12 +25,10 @@ async function removeData(keys: string | string[]): Promise<void> {
   try {
     if (!chrome?.runtime?.id) return;
     return await chrome.storage.local.remove(keys);
-  } catch (e) {
-     // Silencia o erro de contexto invalidado
+  } catch (_e) {
   }
 }
 
-// --- Lógica de Retenção ---
 
 async function applyRetention(
   conversationKey: string,
@@ -40,9 +37,8 @@ async function applyRetention(
   const settings = await getAppSettings();
   const chunksToDelete: string[] = [];
   let totalMessages = meta.messageCount;
-  let messagesDeletedCount = 0;
+  let _messagesDeletedCount = 0;
 
-  // Retenção por volume (limite de mensagens)
   if (totalMessages > settings.messageLimit) {
     const chunks = Array.from({ length: meta.chunks }, (_, i) => i + 1);
     for (const chunkNum of chunks) {
@@ -53,7 +49,7 @@ async function applyRetention(
       if (chunk.length > 0) {
         chunksToDelete.push(chunkKey);
         totalMessages -= chunk.length;
-        messagesDeletedCount += chunk.length;
+        _messagesDeletedCount += chunk.length;
       }
     }
   }

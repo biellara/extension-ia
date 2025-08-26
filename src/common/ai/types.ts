@@ -21,7 +21,7 @@ export interface AiResult {
   payload: {
     kind: AiRequestKind;
     conversationKey: string;
-    data: any; // O JSON retornado pelo Gemini
+    data: unknown; // O JSON retornado pelo Gemini
     tokensIn: number;
     tokensOut: number;
     tookMs: number;

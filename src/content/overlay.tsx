@@ -10,9 +10,6 @@ import {
   OPTIONS_UPDATE_SETTINGS,
   CS_SHOW_OVERLAY,
   MSG_OPEN_OPTIONS_PAGE,
-  AI_SUMMARIZE,
-  AI_SUGGEST,
-  AI_CLASSIFY,
   AI_RESULT,
   AI_ERROR
 } from '../common/messaging/channels';
@@ -21,32 +18,45 @@ import './overlay.css';
 
 // --- Subcomponentes para Renderizar Resultados da IA ---
 
-const SummaryResult = ({ data }: { data: any }) => (
-  <div className="ai-result-section">
-    <h3>Resumo da Conversa</h3>
-    {data.topics && (
-      <>
-        <h4>Tópicos Principais:</h4>
-        <ul>{data.topics.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
-      </>
-    )}
-    {data.next_steps && (
-      <>
-        <h4>Próximos Passos:</h4>
-        <ul>{data.next_steps.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
-      </>
-    )}
-  </div>
-);
+type SummaryData = {
+  topics?: string[];
+  next_steps?: string[];
+};
 
-const SuggestionResult = ({ data }: { data: any }) => {
+const SummaryResult = ({ data }: { data: unknown }) => {
+  const summaryData = data as SummaryData;
+  return (
+    <div className="ai-result-section">
+      <h3>Resumo da Conversa</h3>
+      {summaryData.topics && (
+        <>
+          <h4>Tópicos Principais:</h4>
+          <ul>{summaryData.topics.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
+        </>
+      )}
+      {summaryData.next_steps && (
+        <>
+          <h4>Próximos Passos:</h4>
+          <ul>{summaryData.next_steps.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
+        </>
+      )}
+    </div>
+  );
+};
+
+type SuggestionData = {
+  suggestions?: { tone: string; text: string }[];
+};
+
+const SuggestionResult = ({ data }: { data: unknown }) => {
+  const suggestionData = data as SuggestionData;
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
   };
   return (
     <div className="ai-result-section">
       <h3>Sugestões de Resposta</h3>
-      {data.suggestions?.map((sug: { tone: string, text: string }, i: number) => (
+      {suggestionData.suggestions?.map((sug: { tone: string, text: string }, i: number) => (
         <div key={i} className="suggestion-card">
           <div className="suggestion-header">
             <strong>Tom: {sug.tone}</strong>
@@ -59,16 +69,25 @@ const SuggestionResult = ({ data }: { data: any }) => {
   );
 };
 
-const ClassificationResult = ({ data }: { data: any }) => (
-  <div className="ai-result-section">
-    <h3>Classificação</h3>
-    <div className="classification-grid">
-      <span>Motivo:</span> <strong>{data.reason}</strong>
-      <span>Urgência:</span> <strong>{data.urgency}</strong>
-      <span>Sentimento:</span> <strong>{data.sentiment}</strong>
+type ClassificationData = {
+  reason?: string;
+  urgency?: string;
+  sentiment?: string;
+};
+
+const ClassificationResult = ({ data }: { data: unknown }) => {
+  const classificationData = data as ClassificationData;
+  return (
+    <div className="ai-result-section">
+      <h3>Classificação</h3>
+      <div className="classification-grid">
+        <span>Motivo:</span> <strong>{classificationData.reason}</strong>
+        <span>Urgência:</span> <strong>{classificationData.urgency}</strong>
+        <span>Sentimento:</span> <strong>{classificationData.sentiment}</strong>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 
 // --- Componente Principal do Overlay ---
@@ -119,22 +138,31 @@ const App = () => {
     port.onDisconnect.addListener(() => console.log("Porta do overlay desconectada."));
     safeSendMessage({ type: MSG_GET_STATUS });
     
-    const messageListener = (message: any) => {
-      if (message.type === CS_SHOW_OVERLAY) {
-        setMinimized(false);
-        saveOverlayUIState({ minimized: false });
-      }
-      else if (message.type === AI_RESULT) {
-        if (message.payload.conversationKey === status.conversationKey) {
-          setAiResult(message.payload);
-          setAiError(null);
-          setIsAiLoading(false);
+    const messageListener = (message: unknown) => {
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        'type' in message
+      ) {
+        const msg = message as { type: string; payload?: unknown };
+        if (msg.type === CS_SHOW_OVERLAY) {
+          setMinimized(false);
+          saveOverlayUIState({ minimized: false });
         }
-      } else if (message.type === AI_ERROR) {
-        if (message.payload.conversationKey === status.conversationKey) {
-          setAiError(message.payload.reason);
-          setAiResult(null);
-          setIsAiLoading(false);
+        else if (msg.type === AI_RESULT) {
+          const payload = msg.payload as { conversationKey?: string };
+          if (payload && payload.conversationKey === status.conversationKey) {
+            setAiResult(msg.payload as AiResult['payload']);
+            setAiError(null);
+            setIsAiLoading(false);
+          }
+        } else if (msg.type === AI_ERROR) {
+          const payload = msg.payload as { conversationKey?: string; reason?: string };
+          if (payload && payload.conversationKey === status.conversationKey) {
+            setAiError(payload.reason ?? '');
+            setAiResult(null);
+            setIsAiLoading(false);
+          }
         }
       }
     };

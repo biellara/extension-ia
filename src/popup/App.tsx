@@ -50,9 +50,14 @@ export default function App() {
     fetchStatus();
 
     // Listener para atualizações em tempo real (se o popup ficar aberto)
-    const listener = (message: any) => {
-      if (message.type === MSG_BG_STATUS) {
-        setStatus(message.payload);
+    const listener = (message: unknown) => {
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        "type" in message &&
+        (message as { type?: unknown }).type === MSG_BG_STATUS
+      ) {
+        setStatus((message as { payload?: BgStatus }).payload ?? { state: 'idle', paused: false });
       }
     };
     chrome.runtime.onMessage.addListener(listener);

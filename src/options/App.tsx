@@ -12,10 +12,10 @@ const App = () => {
     getAppSettings().then(setSettings);
   }, []);
 
-  const handleSettingChange = (key: keyof AppSettings, value: any) => {
+  const handleSettingChange = (key: keyof AppSettings, value: unknown) => {
     if (!settings) return;
     const parsedValue = (key === 'retentionDays' || key === 'messageLimit' || key === 'contextWindowSize')
-      ? parseInt(value, 10)
+      ? parseInt(value as string, 10)
       : value;
 
     const newSettings = { ...settings, [key]: parsedValue };

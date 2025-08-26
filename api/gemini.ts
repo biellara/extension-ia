@@ -92,9 +92,10 @@ const handler = async (request: VercelRequest, response: VercelResponse): Promis
 
     response.status(geminiResponse.status).json(data);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("ERRO na chamada para a API do Gemini:", error);
-    response.status(500).json({ error: { message: 'Falha de comunicação com a API do Gemini.', details: error.message } });
+    const errorMessage = typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : String(error);
+    response.status(500).json({ error: { message: 'Falha de comunicação com a API do Gemini.', details: errorMessage } });
   }
 };
 

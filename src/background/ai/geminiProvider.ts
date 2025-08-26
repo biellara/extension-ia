@@ -11,7 +11,7 @@ export async function callGemini(
   model: string,
   prompt: string,
   responseSchema?: object
-): Promise<{ data: any; tokensIn: number; tokensOut: number; }> {
+): Promise<{ data: unknown; tokensIn: number; tokensOut: number; }> {
 
   const response = await fetch(PROXY_API_URL, {
     method: 'POST',
