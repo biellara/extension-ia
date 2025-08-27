@@ -12,12 +12,20 @@ import {
   MSG_CLEAR_ALL_DATA,
   AI_SUMMARIZE,
   AI_SUGGEST,
-  AI_CLASSIFY
+  AI_CLASSIFY,
+  CS_INSERT_SUGGESTION,
+  AI_RESULT
 } from "../common/messaging/channels";
 import { processMessageBatch, clearConversationData } from "../common/storage/storage";
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
-import { handleAiRequest } from "../background/ai/aiHandlers"; // Importa o handler de IA
+import { handleAiRequest } from "../background/ai/aiHandlers";
+import { debounce } from "../common/utils/debounce";
 
+type ClassificationData = {
+  reason?: string;
+  urgency?: string;
+  sentiment?: string;
+};
 
 type AppState = {
   state: 'idle' | 'observing' | 'paused';
@@ -26,10 +34,26 @@ type AppState = {
   messageCount?: number;
   latestTimestamp?: string;
   settings: AppSettings;
+  classification?: ClassificationData;
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
+
+const classifyConversation = async (tabId: number, conversationKey: string) => {
+  const resultPayload = await handleAiRequest({
+    type: 'AI_CLASSIFY',
+    payload: { conversationKey }
+  }, tabId);
+
+  if (resultPayload?.kind === 'classification') {
+    const currentState = await getTabState(tabId);
+    currentState.classification = resultPayload.data as ClassificationData;
+    broadcastStatus(tabId);
+  }
+};
+
+const debouncedClassify = debounce(classifyConversation, 3000);
 
 async function getTabState(tabId: number): Promise<AppState> {
   if (!tabStates[tabId]) {
@@ -50,11 +74,9 @@ async function broadcastStatus(tabId: number) {
     try {
       port.postMessage({ type: MSG_BG_STATUS, payload: state });
       if (chrome.runtime.lastError) {
-        console.warn(`[BG] lastError ao enviar status para aba ${tabId}: ${chrome.runtime.lastError.message}`);
         delete activePorts[tabId];
       }
     } catch (e) {
-      console.warn(`[BG] Falha ao enviar status para aba ${tabId}, porta desconectada.`, e);
       delete activePorts[tabId];
     }
   }
@@ -64,11 +86,8 @@ chrome.runtime.onConnect.addListener(port => {
   if (port.name === "overlay" && port.sender?.tab?.id) {
     const tabId = port.sender.tab.id;
     activePorts[tabId] = port;
-
     port.onDisconnect.addListener(() => {
       delete activePorts[tabId];
-      if (chrome.runtime.lastError) {
-      }
     });
   }
 });
@@ -76,10 +95,31 @@ chrome.runtime.onConnect.addListener(port => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const { type, payload } = message;
 
-  if (type === AI_SUMMARIZE || type === AI_SUGGEST || type === AI_CLASSIFY) {
+  if (type === CS_INSERT_SUGGESTION) {
+    const tabId = sender.tab?.id;
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, message, (response) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse(response);
+        }
+      });
+    } else {
+      sendResponse({ success: false, error: 'ID da aba do remetente não encontrado.' });
+    }
+    return true;
+  }
+  
+  if (type === AI_SUMMARIZE || type === AI_SUGGEST) {
     const tabId = payload?.tabId || sender.tab?.id;
     if (tabId) {
-      handleAiRequest(message, tabId);
+        (async () => {
+            const resultPayload = await handleAiRequest(message, tabId);
+            if (resultPayload) {
+                chrome.tabs.sendMessage(tabId, { type: AI_RESULT, payload: resultPayload });
+            }
+        })();
     }
     return true;
   }
@@ -98,6 +138,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 state.state = 'idle';
                 state.conversationKey = undefined;
                 state.messageCount = 0;
+                state.classification = undefined;
                 broadcastStatus(tabIdNum);
             }
         });
@@ -119,17 +160,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.conversationKey = payload.conversationKey;
         currentState.messageCount = 0;
         currentState.latestTimestamp = undefined;
+        currentState.classification = undefined;
         if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
         stateChanged = true;
         break;
 
       case MSG_CS_SNAPSHOT_RESULT:
+        if (currentState.paused) break;
+        const metaSnapshot = await processMessageBatch(payload.conversationKey, payload.messages);
+        currentState.messageCount = metaSnapshot.messageCount;
+        currentState.latestTimestamp = metaSnapshot.latestTimestampISO;
+        stateChanged = true;
+        if (metaSnapshot.messageCount > 0) {
+            classifyConversation(tabId, payload.conversationKey);
+        }
+        break;
+
       case MSG_CS_NEW_MESSAGES:
         if (currentState.paused) break;
-        const meta = await processMessageBatch(payload.conversationKey, payload.messages);
-        currentState.messageCount = meta.messageCount;
-        currentState.latestTimestamp = meta.latestTimestampISO;
+        const metaNew = await processMessageBatch(payload.conversationKey, payload.messages);
+        currentState.messageCount = metaNew.messageCount;
+        currentState.latestTimestamp = metaNew.latestTimestampISO;
         stateChanged = true;
+
+        const lastMessage = payload.messages[payload.messages.length - 1];
+        if (lastMessage?.authorType === 'contact') {
+          debouncedClassify(tabId, payload.conversationKey);
+        }
         break;
 
       case MSG_GET_STATUS:
@@ -147,6 +204,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           await clearConversationData(payload.conversationKey);
           currentState.messageCount = 0;
           currentState.latestTimestamp = undefined;
+          currentState.classification = undefined;
           stateChanged = true;
         }
         break;
@@ -166,7 +224,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-// Context Menu
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "toggle-pause",

@@ -30,9 +30,6 @@ const allowCors = (fn: (req: VercelRequest, res: VercelResponse) => Promise<void
   return await fn(req, res);
 };
 
-/**
- * Handler principal da função serverless.
- */
 const handler = async (request: VercelRequest, response: VercelResponse): Promise<void> => {
   if (request.method !== 'POST') {
     response.status(405).json({ error: { message: 'Método não permitido.' } });

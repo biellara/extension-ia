@@ -16,4 +16,11 @@ export const selectors = {
   messageTimestamp: 'span[class*="jss370"]', // A hora da mensagem
   messageAvatar: 'div.MuiAvatar-root', // O avatar do remetente
   messageGridContainer: '.MuiGrid-container.MuiGrid-spacing-xs-1', // O contêiner que alinha avatar e texto
+  
+  chatInput: [
+    'textarea[placeholder*="Escreva sua mensagem" i]',
+    'textarea[aria-label*="mensagem" i]',
+    'textarea.MuiInputBase-input'
+  ]
+
 };

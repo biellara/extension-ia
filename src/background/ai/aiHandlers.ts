@@ -8,7 +8,7 @@ import { suggestionSchema } from './schemas/suggest.schema';
 import { classificationSchema } from './schemas/classify.schema';
 import { summarizePrompt, suggestPrompt, classifyPrompt } from './prompts';
 
-export async function handleAiRequest(message: AiRequest, tabId: number) {
+export async function handleAiRequest(message: AiRequest, tabId: number): Promise<AiResult['payload'] | null> {
   const { type, payload } = message;
   const startTime = Date.now();
 
@@ -59,7 +59,7 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
       tookMs,
     };
     
-    chrome.tabs.sendMessage(tabId, { type: 'AI_RESULT', payload: resultPayload });
+    return resultPayload;
 
   } catch (error) {
     const errorPayload: AiError['payload'] = {
@@ -67,7 +67,8 @@ export async function handleAiRequest(message: AiRequest, tabId: number) {
       reason: error instanceof Error ? error.message : 'Erro desconhecido',
       details: error instanceof Error ? error.stack : undefined,
     };
-    console.error("[AI Handler Error]", errorPayload);
+    console.error("[AI Handler] Erro:", errorPayload);
     chrome.tabs.sendMessage(tabId, { type: 'AI_ERROR', payload: errorPayload });
+    return null;
   }
 }

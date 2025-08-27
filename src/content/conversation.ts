@@ -5,7 +5,7 @@ import { normalizeText, onlyDigits } from "../common/utils/text";
 import { sha1 } from "../common/utils/hash";
 import { debounce } from "../common/utils/debounce";
 import { safeSendMessage, Message } from "../common/messaging/safeSend";
-import { MSG_CS_CONVERSATION_CHANGE, MSG_BG_REQUEST_SNAPSHOT, MSG_CS_SNAPSHOT_RESULT, MSG_CS_NEW_MESSAGES } from "../common/messaging/channels";
+import { MSG_CS_CONVERSATION_CHANGE, MSG_BG_REQUEST_SNAPSHOT, MSG_CS_SNAPSHOT_RESULT, MSG_CS_NEW_MESSAGES, CS_INSERT_SUGGESTION } from "../common/messaging/channels";
 
 type ConversationHeader = { protocol?: string; phone?: string; name?: string };
 type MessageData = {
@@ -19,7 +19,29 @@ type MessageData = {
 let messageObserver: MutationObserver | null = null;
 const processedDigests = new Set<string>();
 
-// ... (Funções de leitura do cabeçalho permanecem as mesmas) ...
+function findChatInput(): HTMLTextAreaElement | null {
+  for (const selector of selectors.chatInput) {
+    const inputElement = document.querySelector(selector);
+    if (inputElement) {
+      return inputElement as HTMLTextAreaElement;
+    }
+  }
+  console.error('[Echo] Campo de input do chat não encontrado.');
+  return null;
+}
+
+function insertSuggestion(text: string): boolean {
+  const input = findChatInput();
+  if (input) {
+    input.value = text;
+    input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+    input.focus();
+    return true;
+  }
+  return false;
+}
+
 function getHeaderEl(): Element | null {
   return document.querySelector(selectors.headerContainer);
 }
@@ -124,7 +146,6 @@ function collectMessages(): MessageData[] {
     }
   });
 
-  console.table(messages);
   return messages;
 }
 
@@ -181,22 +202,31 @@ function waitForElement(selector: string, callback: () => void) {
   }, 200);
 }
 
-export function handleBackgroundMessages(message: Message, _sender: chrome.runtime.MessageSender, _sendResponse: (response?: unknown) => void) {
-  if (message.type === MSG_BG_REQUEST_SNAPSHOT) {
-    const payload = message.payload as { conversationKey: string };
-    
-    waitForElement(selectors.messageList, () => {
-      const messages = collectMessages();
-      safeSendMessage({
-        type: MSG_CS_SNAPSHOT_RESULT,
-        payload: {
-          conversationKey: payload.conversationKey,
-          messages,
-        },
-      });
-      startMessageObserver();
-    });
-  }
+export function handleBackgroundMessages(message: Message, _sender: chrome.runtime.MessageSender, sendResponse: (response?: unknown) => void): boolean {
+    switch (message.type) {
+        case MSG_BG_REQUEST_SNAPSHOT: {
+            const payload = message.payload as { conversationKey: string };
+            waitForElement(selectors.messageList, () => {
+                const messages = collectMessages();
+                safeSendMessage({
+                    type: MSG_CS_SNAPSHOT_RESULT,
+                    payload: { conversationKey: payload.conversationKey, messages },
+                });
+                startMessageObserver();
+            });
+            return false;
+        }
+
+        case CS_INSERT_SUGGESTION: {
+            const payload = message.payload as { text: string };
+            const success = insertSuggestion(payload.text);
+            sendResponse({ success });
+            return true;
+        }
+
+        default:
+            return false;
+    }
 }
 
 function attachHeaderObserver(headerElement: Element) {
@@ -214,7 +244,6 @@ export function startConversationWatcher() {
   const checkInterval = 500;
   const maxAttempts = 40;
   let attempts = 0;
-
 
   const intervalId = setInterval(() => {
     const headerNode = getHeaderEl();

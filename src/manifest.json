@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Echo (DEV)",
   "version": "1.0.0",
+  "author": "Gabriel Dias de Lara",
   "description": "An extension designed to assist with online customer support using AI.",
 
   "permissions": ["storage", "contextMenus", "downloads"],

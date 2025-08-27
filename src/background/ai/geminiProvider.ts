@@ -26,12 +26,17 @@ export async function callGemini(
     throw new Error(result.error?.message || "O servidor proxy retornou uma resposta inválida.");
   }
 
-  if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
-    console.error("[Gemini Provider] Resposta da API sem 'candidates':", result);
+  const candidate = result.candidates?.[0];
+  const part = candidate?.content?.parts?.[0];
+
+  if (!part || typeof part.text !== 'string') {
+    console.error("[Gemini Provider] Resposta da API em formato inesperado ou vazia (sem 'parts' ou 'text'). Isso pode ser causado por filtros de segurança da API.", result);
+    console.log("[Gemini Provider] Resposta completa da Gemini:", JSON.stringify(result, null, 2));
     throw new Error("A API do Gemini retornou uma resposta vazia ou em formato inesperado.");
   }
 
-  const textResponse = result.candidates[0].content.parts[0].text;
+
+  const textResponse = part.text;
   
   return {
     data: responseSchema ? JSON.parse(textResponse) : textResponse,
