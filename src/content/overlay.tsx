@@ -108,13 +108,15 @@ const RealtimeClassification = ({ classification }: { classification?: Classific
 
   const { reason, urgency, sentiment } = classification;
 
-  const sentimentMap = {
+  const sentimentMap: Record<string, { icon: string; className: string }> = {
     'Positivo': { icon: '😊', className: 'positive' },
-    'Neutro': '😐',
+    'Neutro': { icon: '😐', className: 'neutral' },
     'Negativo': { icon: '😡', className: 'negative' },
   };
 
-  const sentimentInfo = sentiment ? sentimentMap[sentiment] : { icon: '🤔', className: 'unknown' };
+  const sentimentInfo = sentiment && sentimentMap[sentiment]
+    ? sentimentMap[sentiment]
+    : { icon: '🤔', className: 'unknown' };
 
   return (
     <div className={`realtime-classification-bar sentiment-${sentimentInfo.className}`}>
