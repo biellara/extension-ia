@@ -16,7 +16,8 @@ export interface ConversationMeta {
   latestTimestampISO: string;
   chunks: number; // Número do último chunk de mensagens
   retentionUntil?: string; // Data ISO para a próxima verificação de retenção
-  summary?: { // Novo campo para o resumo
+  status: 'active' | 'finished'; // Novo
+  summary?: { // Para o resumo
     generatedAt: string;
     content: unknown;
   };

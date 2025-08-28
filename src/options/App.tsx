@@ -59,15 +59,6 @@ const App = () => {
             <option value="80">Últimas 80</option>
           </select>
         </div>
-        <div className="setting-item">
-          <label htmlFor="autoSummarizeOnEnd">Gerar resumo ao finalizar:</label>
-          <input
-            type="checkbox"
-            id="autoSummarizeOnEnd"
-            checked={settings.autoSummarizeOnEnd}
-            onChange={(e) => handleSettingChange('autoSummarizeOnEnd', e.target.checked)}
-          />
-        </div>
       </div>
 
       <div className="settings-section">
@@ -106,7 +97,7 @@ const App = () => {
             <li>Todos os dados de atendimento são coletados e armazenados apenas no seu computador.</li>
             <li>Você pode apagar conversas individuais ou todos os dados a qualquer momento.</li>
             <li>Por padrão, mantemos os dados conforme as configurações de retenção acima.</li>
-            <li>Dados sensíveis (como CPF/telefone) não são tratados de forma especial, mas nunca saiem do seu navegador.</li>
+            <li>Dados sensíveis (como CPF/telefone) não são tratados de forma especial, mas nunca saem do seu navegador.</li>
           </ul>
         </div>
       </div>

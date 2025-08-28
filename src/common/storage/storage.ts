@@ -29,6 +29,16 @@ async function removeData(keys: string | string[]): Promise<void> {
   }
 }
 
+export async function getConversationMeta(conversationKey: string): Promise<ConversationMeta | null> {
+    const metaKey = `conv:${conversationKey}:meta`;
+    return await loadData<ConversationMeta | null>(metaKey, null);
+}
+
+export async function saveConversationMeta(conversationKey: string, meta: ConversationMeta): Promise<void> {
+    const metaKey = `conv:${conversationKey}:meta`;
+    await saveData(metaKey, meta);
+}
+
 
 async function applyRetention(
   conversationKey: string,
@@ -97,6 +107,7 @@ export async function processMessageBatch(
       messageCount: 0,
       latestTimestampISO: "",
       chunks: 1,
+      status: 'active',
     };
   }
 

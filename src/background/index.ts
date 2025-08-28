@@ -13,9 +13,10 @@ import {
   AI_SUMMARIZE,
   AI_SUGGEST,
   CS_INSERT_SUGGESTION,
-  AI_RESULT
+  AI_RESULT,
+  OVERLAY_FINISH_CONVERSATION
 } from "../common/messaging/channels";
-import { processMessageBatch, clearConversationData } from "../common/storage/storage";
+import { processMessageBatch, clearConversationData, getConversationMeta, saveConversationMeta } from "../common/storage/storage";
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
 import { handleAiRequest } from "../background/ai/aiHandlers";
 import { debounce } from "../common/utils/debounce";
@@ -28,45 +29,18 @@ type ClassificationData = {
 };
 
 type AppState = {
-  state: 'idle' | 'observing' | 'paused';
+  state: 'idle' | 'observing' | 'paused' | 'finished';
   paused: boolean;
   conversationKey?: string;
   messageCount?: number;
   latestTimestamp?: string;
   settings: AppSettings;
   classification?: ClassificationData;
-  summary?: ConversationMeta['summary']; // Adicionado para o estado
+  summary?: ConversationMeta['summary'];
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
-
-async function summarizeAndStore(tabId: number, conversationKey: string) {
-  const settings = await getAppSettings();
-  if (!settings.autoSummarizeOnEnd) return;
-
-  const resultPayload = await handleAiRequest({
-    type: 'AI_SUMMARIZE',
-    payload: { conversationKey }
-  }, tabId);
-
-  if (resultPayload?.kind === 'summary') {
-    const summaryData = {
-      generatedAt: new Date().toISOString(),
-      content: resultPayload.data,
-    };
-
-    const metaKey = `conv:${conversationKey}:meta`;
-    const meta = await chrome.storage.local.get(metaKey);
-    const updatedMeta = { ...meta[metaKey], summary: summaryData };
-    await chrome.storage.local.set({ [metaKey]: updatedMeta });
-
-    if (tabStates[tabId]?.conversationKey === conversationKey) {
-        tabStates[tabId].summary = summaryData;
-        broadcastStatus(tabId);
-    }
-  }
-}
 
 const classifyConversation = async (tabId: number, conversationKey: string) => {
   const resultPayload = await handleAiRequest({
@@ -138,7 +112,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
   }
-
+  
   if (type === AI_SUMMARIZE || type === AI_SUGGEST) {
     const tabId = payload?.tabId || sender.tab?.id;
     if (tabId) {
@@ -151,7 +125,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
   }
-
+  
   if (type === MSG_OPEN_OPTIONS_PAGE) {
     chrome.runtime.openOptionsPage();
     return;
@@ -185,18 +159,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     switch (type) {
       case MSG_CS_CONVERSATION_CHANGE:
-        // Gatilho para resumir a conversa anterior
-        if (currentState.conversationKey && currentState.state === 'observing') {
-          summarizeAndStore(tabId, currentState.conversationKey);
-        }
-
         currentState.state = 'observing';
         currentState.conversationKey = payload.conversationKey;
         currentState.messageCount = 0;
         currentState.latestTimestamp = undefined;
         currentState.classification = undefined;
-        currentState.summary = undefined; // Limpa o resumo da conversa anterior
-
+        currentState.summary = undefined;
         if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
         stateChanged = true;
         break;
@@ -206,15 +174,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const metaSnapshot = await processMessageBatch(payload.conversationKey, payload.messages);
         currentState.messageCount = metaSnapshot.messageCount;
         currentState.latestTimestamp = metaSnapshot.latestTimestampISO;
-        currentState.summary = metaSnapshot.summary; // Carrega o resumo, se existir
+        currentState.summary = metaSnapshot.summary;
+        currentState.state = metaSnapshot.status === 'finished' ? 'finished' : 'observing';
         stateChanged = true;
-        if (metaSnapshot.messageCount > 0) {
+        if (metaSnapshot.messageCount > 0 && metaSnapshot.status === 'active') {
             classifyConversation(tabId, payload.conversationKey);
         }
         break;
 
       case MSG_CS_NEW_MESSAGES:
-        if (currentState.paused) break;
+        if (currentState.paused || currentState.state === 'finished') break;
         const metaNew = await processMessageBatch(payload.conversationKey, payload.messages);
         currentState.messageCount = metaNew.messageCount;
         currentState.latestTimestamp = metaNew.latestTimestampISO;
@@ -226,13 +195,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         break;
 
+      case OVERLAY_FINISH_CONVERSATION:
+        if (currentState.conversationKey) {
+            const resultPayload = await handleAiRequest({ type: 'AI_SUMMARIZE', payload: { conversationKey: currentState.conversationKey }}, tabId);
+            if (resultPayload?.kind === 'summary') {
+                const summaryData = {
+                    generatedAt: new Date().toISOString(),
+                    content: resultPayload.data,
+                };
+                const meta = await getConversationMeta(currentState.conversationKey);
+                if (meta) {
+                    meta.summary = summaryData;
+                    meta.status = 'finished';
+                    await saveConversationMeta(currentState.conversationKey, meta);
+                    currentState.summary = summaryData;
+                    currentState.state = 'finished';
+                    stateChanged = true;
+                }
+            }
+        }
+        break;
+
       case MSG_GET_STATUS:
         sendResponse({ type: MSG_BG_STATUS, payload: currentState });
         break;
 
       case POPUP_TOGGLE_PAUSE:
         currentState.paused = !currentState.paused;
-        currentState.state = currentState.paused ? 'paused' : 'observing';
+        currentState.state = currentState.paused ? 'paused' : (currentState.state === 'finished' ? 'finished' : 'observing');
         stateChanged = true;
         break;
 
@@ -243,6 +233,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           currentState.latestTimestamp = undefined;
           currentState.classification = undefined;
           currentState.summary = undefined;
+          currentState.state = 'observing';
           stateChanged = true;
         }
         break;
@@ -275,7 +266,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "toggle-pause" && tab?.id) {
     const state = await getTabState(tab.id);
     state.paused = !state.paused;
-    state.state = state.paused ? 'paused' : 'observing';
+    state.state = state.paused ? 'paused' : (state.state === 'finished' ? 'finished' : 'observing');
     broadcastStatus(tab.id);
   }
 });

@@ -13,6 +13,7 @@ import {
   AI_RESULT,
   AI_ERROR,
   CS_INSERT_SUGGESTION,
+  OVERLAY_FINISH_CONVERSATION,
 } from "../common/messaging/channels";
 import { AiResult } from "../common/ai/types";
 import "./overlay.css";
@@ -38,17 +39,16 @@ const SummaryResult = ({ data }: { data: unknown }) => {
   const summaryData = data as SummaryData;
   return (
     <div className="ai-result-section">
-      <h3>Resumo da Conversa</h3>
       {summaryData.topics && ( <><h4>Tópicos Principais:</h4><ul>{summaryData.topics.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul></>)}
       {summaryData.next_steps && ( <><h4>Próximos Passos:</h4><ul>{summaryData.next_steps.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul></>)}
     </div>
   );
 };
 
-const FinalSummary = ({ summary }: { summary: ConversationMeta['summary'] }) => {
+const FinalSummary = ({ summary }: { summary?: ConversationMeta['summary'] }) => {
     if (!summary) return null;
     return (
-      <div className="ai-result-section" style={{ marginTop: '15px', borderTop: '1px solid var(--border-primary)', paddingTop: '10px' }}>
+      <div className="ai-result-section final-summary">
         <h3>📄 Resumo Final (IA)</h3>
         <SummaryResult data={summary.content} />
       </div>
@@ -69,14 +69,14 @@ const SuggestionResult = ({ data, conversationKey }: { data: unknown; conversati
       setFeedback((prev) => ({ ...prev, [index]: "✔ Copiado" }));
     } else if (action === "insert" && conversationKey) {
       safeSendMessage({ type: CS_INSERT_SUGGESTION, payload: { text }})
-      .then((response => {
+      .then((response) => {
         const res = response as { success?: boolean };
         if (res?.success) {
           setFeedback((prev) => ({ ...prev, [index]: "✔ Inserido" }));
         } else {
           setFeedback((prev) => ({ ...prev, [index]: "Falhou!" }));
         }
-      }));
+      });
     }
     setTimeout(() => {
       setFeedback((prev) => ({ ...prev, [index]: "" }));
@@ -149,7 +149,7 @@ const RealtimeClassification = ({ classification }: { classification?: Classific
 };
 
 type StatusPayload = {
-  state?: "idle" | "observing" | "paused";
+  state?: "idle" | "observing" | "paused" | "finished";
   paused?: boolean;
   conversationKey?: string;
   messageCount?: number;
@@ -268,6 +268,10 @@ const App = () => {
     port.onMessage.addListener((message) => {
       if (message.type === MSG_BG_STATUS) {
         setStatus(message.payload);
+        if (message.payload.state === 'finished') {
+            setIsAiLoading(false);
+            setAiResult(null);
+        }
       }
     });
     safeSendMessage({ type: MSG_GET_STATUS });
@@ -393,6 +397,15 @@ const App = () => {
     safeSendMessage({ type, payload: { conversationKey: status.conversationKey }});
   };
 
+  const handleFinishConversation = () => {
+      if (status.conversationKey && status.state !== 'finished') {
+          setIsAiLoading(true);
+          setAiResult(null);
+          setAiError(null);
+          safeSendMessage({ type: OVERLAY_FINISH_CONVERSATION, payload: { conversationKey: status.conversationKey }});
+      }
+  }
+
   const renderAiResult = () => {
     if (!aiResult) return null;
     switch (aiResult.kind) {
@@ -402,6 +415,7 @@ const App = () => {
     }
   };
 
+  const isFinished = status.state === 'finished';
   const latestTime = status.latestTimestamp ? new Date(status.latestTimestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "-";
   const overlayClassName = `echo-overlay ${isDarkMode ? "dark-theme" : ""} ${minimized ? "minimized" : ""}`;
 
@@ -420,7 +434,12 @@ const App = () => {
           <div className={`echo-status-indicator ${status.state || "idle"}`} />
           <span>Echo</span>
         </div>
-        <button onClick={toggleMinimize} className="echo-overlay-button" title="Minimizar">-</button>
+        <div className="header-buttons">
+            <button onClick={handleFinishConversation} className="echo-overlay-button finish-button" title="Encerrar e Gerar Resumo" disabled={isFinished || status.state === 'idle' || isAiLoading}>
+                ✓
+            </button>
+            <button onClick={toggleMinimize} className="echo-overlay-button" title="Minimizar">-</button>
+        </div>
       </div>
       <div className="echo-overlay-body">
         <RealtimeClassification classification={status.classification} />
@@ -438,13 +457,15 @@ const App = () => {
           </label>
         </div>
         <div className="echo-overlay-ia-section">
-          <div className="echo-overlay-ia-actions">
-            <button onClick={() => handleAiAction("AI_SUMMARIZE")} disabled={isAiLoading || status.state === "idle"}>Resumo IA</button>
-            <button onClick={() => handleAiAction("AI_SUGGEST")} disabled={isAiLoading || status.state === "idle"}>Sugestão</button>
-          </div>
+            {!isFinished && (
+                <div className="echo-overlay-ia-actions">
+                    <button onClick={() => handleAiAction("AI_SUMMARIZE")} disabled={isAiLoading || status.state === "idle"}>Resumo IA</button>
+                    <button onClick={() => handleAiAction("AI_SUGGEST")} disabled={isAiLoading || status.state === "idle"}>Sugestão</button>
+                </div>
+            )}
           {isAiLoading && (<div className="ai-loading">Consultando Gemini...</div>)}
           {aiError && <div className="ai-error">Erro: {aiError}</div>}
-          {aiResult && <div className="ai-result">{renderAiResult()}</div>}
+          {aiResult && !isFinished && <div className="ai-result">{renderAiResult()}</div>}
           <FinalSummary summary={status.summary} />
         </div>
       </div>
