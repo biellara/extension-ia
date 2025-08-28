@@ -8,6 +8,7 @@ export interface AppSettings {
   anonymize: boolean;
   aiModel: string;
   contextWindowSize: 30 | 50 | 80;
+  autoSummarizeOnEnd: boolean; // Nova configuração
 }
 
 const STORAGE_KEY = 'echoAppSettings';
@@ -16,8 +17,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   retentionDays: 7,
   messageLimit: 2000,
   anonymize: true,
-  aiModel: 'gemini-2.5-flash', // Modelo padrão atualizado
+  aiModel: 'gemini-1.5-flash', // Modelo padrão atualizado
   contextWindowSize: 50,
+  autoSummarizeOnEnd: true, // Habilitado por padrão
 };
 
 /**

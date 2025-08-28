@@ -12,7 +12,6 @@ import {
   MSG_CLEAR_ALL_DATA,
   AI_SUMMARIZE,
   AI_SUGGEST,
-  AI_CLASSIFY,
   CS_INSERT_SUGGESTION,
   AI_RESULT
 } from "../common/messaging/channels";
@@ -20,6 +19,7 @@ import { processMessageBatch, clearConversationData } from "../common/storage/st
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
 import { handleAiRequest } from "../background/ai/aiHandlers";
 import { debounce } from "../common/utils/debounce";
+import { ConversationMeta } from "../common/types/models";
 
 type ClassificationData = {
   reason?: string;
@@ -35,10 +35,38 @@ type AppState = {
   latestTimestamp?: string;
   settings: AppSettings;
   classification?: ClassificationData;
+  summary?: ConversationMeta['summary']; // Adicionado para o estado
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
+
+async function summarizeAndStore(tabId: number, conversationKey: string) {
+  const settings = await getAppSettings();
+  if (!settings.autoSummarizeOnEnd) return;
+
+  const resultPayload = await handleAiRequest({
+    type: 'AI_SUMMARIZE',
+    payload: { conversationKey }
+  }, tabId);
+
+  if (resultPayload?.kind === 'summary') {
+    const summaryData = {
+      generatedAt: new Date().toISOString(),
+      content: resultPayload.data,
+    };
+
+    const metaKey = `conv:${conversationKey}:meta`;
+    const meta = await chrome.storage.local.get(metaKey);
+    const updatedMeta = { ...meta[metaKey], summary: summaryData };
+    await chrome.storage.local.set({ [metaKey]: updatedMeta });
+
+    if (tabStates[tabId]?.conversationKey === conversationKey) {
+        tabStates[tabId].summary = summaryData;
+        broadcastStatus(tabId);
+    }
+  }
+}
 
 const classifyConversation = async (tabId: number, conversationKey: string) => {
   const resultPayload = await handleAiRequest({
@@ -76,7 +104,7 @@ async function broadcastStatus(tabId: number) {
       if (chrome.runtime.lastError) {
         delete activePorts[tabId];
       }
-    } catch (e) {
+    } catch (_e) {
       delete activePorts[tabId];
     }
   }
@@ -110,7 +138,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
   }
-  
+
   if (type === AI_SUMMARIZE || type === AI_SUGGEST) {
     const tabId = payload?.tabId || sender.tab?.id;
     if (tabId) {
@@ -123,7 +151,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
   }
-  
+
   if (type === MSG_OPEN_OPTIONS_PAGE) {
     chrome.runtime.openOptionsPage();
     return;
@@ -139,6 +167,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 state.conversationKey = undefined;
                 state.messageCount = 0;
                 state.classification = undefined;
+                state.summary = undefined;
                 broadcastStatus(tabIdNum);
             }
         });
@@ -156,11 +185,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     switch (type) {
       case MSG_CS_CONVERSATION_CHANGE:
+        // Gatilho para resumir a conversa anterior
+        if (currentState.conversationKey && currentState.state === 'observing') {
+          summarizeAndStore(tabId, currentState.conversationKey);
+        }
+
         currentState.state = 'observing';
         currentState.conversationKey = payload.conversationKey;
         currentState.messageCount = 0;
         currentState.latestTimestamp = undefined;
         currentState.classification = undefined;
+        currentState.summary = undefined; // Limpa o resumo da conversa anterior
+
         if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
         stateChanged = true;
         break;
@@ -170,6 +206,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const metaSnapshot = await processMessageBatch(payload.conversationKey, payload.messages);
         currentState.messageCount = metaSnapshot.messageCount;
         currentState.latestTimestamp = metaSnapshot.latestTimestampISO;
+        currentState.summary = metaSnapshot.summary; // Carrega o resumo, se existir
         stateChanged = true;
         if (metaSnapshot.messageCount > 0) {
             classifyConversation(tabId, payload.conversationKey);
@@ -205,6 +242,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           currentState.messageCount = 0;
           currentState.latestTimestamp = undefined;
           currentState.classification = undefined;
+          currentState.summary = undefined;
           stateChanged = true;
         }
         break;

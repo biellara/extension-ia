@@ -16,6 +16,7 @@ import {
 } from "../common/messaging/channels";
 import { AiResult } from "../common/ai/types";
 import "./overlay.css";
+import { ConversationMeta } from "../common/types/models";
 
 const MinimizedIcon = ({ statusState }: { statusState: string }) => (
   <div className="echo-minimized-icon-wrapper">
@@ -44,6 +45,16 @@ const SummaryResult = ({ data }: { data: unknown }) => {
   );
 };
 
+const FinalSummary = ({ summary }: { summary: ConversationMeta['summary'] }) => {
+    if (!summary) return null;
+    return (
+      <div className="ai-result-section" style={{ marginTop: '15px', borderTop: '1px solid var(--border-primary)', paddingTop: '10px' }}>
+        <h3>📄 Resumo Final (IA)</h3>
+        <SummaryResult data={summary.content} />
+      </div>
+    );
+};
+
 type SuggestionData = {
   suggestions?: { tone: string; text: string }[];
 };
@@ -58,13 +69,14 @@ const SuggestionResult = ({ data, conversationKey }: { data: unknown; conversati
       setFeedback((prev) => ({ ...prev, [index]: "✔ Copiado" }));
     } else if (action === "insert" && conversationKey) {
       safeSendMessage({ type: CS_INSERT_SUGGESTION, payload: { text }})
-      .then((response: any) => {
-        if (response?.success) {
+      .then((response => {
+        const res = response as { success?: boolean };
+        if (res?.success) {
           setFeedback((prev) => ({ ...prev, [index]: "✔ Inserido" }));
         } else {
           setFeedback((prev) => ({ ...prev, [index]: "Falhou!" }));
         }
-      });
+      }));
     }
     setTimeout(() => {
       setFeedback((prev) => ({ ...prev, [index]: "" }));
@@ -144,6 +156,7 @@ type StatusPayload = {
   latestTimestamp?: string;
   settings?: { anonymize?: boolean };
   classification?: ClassificationData;
+  summary?: ConversationMeta['summary'];
 };
 
 const App = () => {
@@ -432,6 +445,7 @@ const App = () => {
           {isAiLoading && (<div className="ai-loading">Consultando Gemini...</div>)}
           {aiError && <div className="ai-error">Erro: {aiError}</div>}
           {aiResult && <div className="ai-result">{renderAiResult()}</div>}
+          <FinalSummary summary={status.summary} />
         </div>
       </div>
       <div className="echo-overlay-footer">
