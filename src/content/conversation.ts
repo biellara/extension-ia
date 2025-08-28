@@ -205,7 +205,10 @@ function waitForElement(selector: string, callback: () => void) {
 export function handleBackgroundMessages(message: Message, _sender: chrome.runtime.MessageSender, sendResponse: (response?: unknown) => void): boolean {
     switch (message.type) {
         case MSG_BG_REQUEST_SNAPSHOT: {
-            const payload = message.payload as { conversationKey: string };
+            const payload = message.payload as { conversationKey: string, isRefresh?: boolean };
+            if (payload.isRefresh) {
+                processedDigests.clear();
+            }
             waitForElement(selectors.messageList, () => {
                 const messages = collectMessages();
                 safeSendMessage({

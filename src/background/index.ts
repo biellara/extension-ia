@@ -14,7 +14,8 @@ import {
   AI_SUGGEST,
   CS_INSERT_SUGGESTION,
   AI_RESULT,
-  OVERLAY_FINISH_CONVERSATION
+  OVERLAY_FINISH_CONVERSATION,
+  OVERLAY_REFRESH_CONVERSATION
 } from "../common/messaging/channels";
 import { processMessageBatch, clearConversationData, getConversationMeta, saveConversationMeta } from "../common/storage/storage";
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
@@ -197,22 +198,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case OVERLAY_FINISH_CONVERSATION:
         if (currentState.conversationKey) {
-            const resultPayload = await handleAiRequest({ type: 'AI_SUMMARIZE', payload: { conversationKey: currentState.conversationKey }}, tabId);
+            const conversationKey = currentState.conversationKey;
+            const resultPayload = await handleAiRequest({ type: 'AI_SUMMARIZE', payload: { conversationKey }}, tabId);
+            
             if (resultPayload?.kind === 'summary') {
                 const summaryData = {
                     generatedAt: new Date().toISOString(),
                     content: resultPayload.data,
                 };
-                const meta = await getConversationMeta(currentState.conversationKey);
+                const meta = await getConversationMeta(conversationKey);
                 if (meta) {
                     meta.summary = summaryData;
                     meta.status = 'finished';
-                    await saveConversationMeta(currentState.conversationKey, meta);
+                    await saveConversationMeta(conversationKey, meta);
+
                     currentState.summary = summaryData;
                     currentState.state = 'finished';
                     stateChanged = true;
+
+                    await clearConversationData(conversationKey, { preserveMeta: true });
                 }
             }
+        }
+        break;
+
+      case OVERLAY_REFRESH_CONVERSATION:
+        if (currentState.conversationKey) {
+            const conversationKey = currentState.conversationKey;
+            await clearConversationData(conversationKey); // Limpa tudo, incluindo meta
+
+            currentState.state = 'observing';
+            currentState.messageCount = 0;
+            currentState.latestTimestamp = undefined;
+            currentState.classification = undefined;
+            currentState.summary = undefined;
+            currentState.paused = false;
+
+            if (chrome.runtime.id) {
+                // Envia uma flag para o content script saber que é uma atualização
+                chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload: { conversationKey, isRefresh: true } });
+            }
+            stateChanged = true;
         }
         break;
 

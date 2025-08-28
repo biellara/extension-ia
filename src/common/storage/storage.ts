@@ -111,6 +111,11 @@ export async function processMessageBatch(
     };
   }
 
+  // Se a conversa já foi finalizada, não processa novas mensagens
+  if (meta.status === 'finished') {
+      return meta;
+  }
+
   const digestSet = new Set(await loadData<string[]>(digestsKey, []));
 
   const newMessages = messages
@@ -156,17 +161,35 @@ export async function processMessageBatch(
   return updatedMeta;
 }
 
-export async function clearConversationData(conversationKey: string): Promise<void> {
+/**
+ * Limpa os dados de uma conversa.
+ * @param conversationKey A chave da conversa a ser limpa.
+ * @param options Opções para a limpeza. Se preserveMeta for true, o arquivo de metadados não é excluído.
+ */
+export async function clearConversationData(
+  conversationKey: string,
+  options: { preserveMeta?: boolean } = {}
+): Promise<void> {
   if (!conversationKey) return;
 
   const metaKey = `conv:${conversationKey}:meta`;
   const meta = await loadData<ConversationMeta | null>(metaKey, null);
   if (!meta) return;
 
-  const keysToDelete = [metaKey, `conv:${conversationKey}:digests`];
+  const keysToDelete: string[] = [`conv:${conversationKey}:digests`];
   for (let i = 1; i <= meta.chunks; i++) {
     keysToDelete.push(`conv:${conversationKey}:chunk:${String(i).padStart(4, "0")}`);
   }
 
+  if (!options.preserveMeta) {
+    keysToDelete.push(metaKey);
+  }
+  
   await removeData(keysToDelete);
+
+  // Se preservarmos os metadados (após finalizar), limpamos a referência aos chunks
+  if (options.preserveMeta && meta) {
+      meta.chunks = 0;
+      await saveData(metaKey, meta);
+  }
 }

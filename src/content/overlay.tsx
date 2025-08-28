@@ -14,6 +14,7 @@ import {
   AI_ERROR,
   CS_INSERT_SUGGESTION,
   OVERLAY_FINISH_CONVERSATION,
+  OVERLAY_REFRESH_CONVERSATION,
 } from "../common/messaging/channels";
 import { AiResult } from "../common/ai/types";
 import "./overlay.css";
@@ -69,14 +70,14 @@ const SuggestionResult = ({ data, conversationKey }: { data: unknown; conversati
       setFeedback((prev) => ({ ...prev, [index]: "✔ Copiado" }));
     } else if (action === "insert" && conversationKey) {
       safeSendMessage({ type: CS_INSERT_SUGGESTION, payload: { text }})
-      .then((response) => {
+      .then((response => {
         const res = response as { success?: boolean };
         if (res?.success) {
           setFeedback((prev) => ({ ...prev, [index]: "✔ Inserido" }));
         } else {
           setFeedback((prev) => ({ ...prev, [index]: "Falhou!" }));
         }
-      });
+      }));
     }
     setTimeout(() => {
       setFeedback((prev) => ({ ...prev, [index]: "" }));
@@ -268,7 +269,7 @@ const App = () => {
     port.onMessage.addListener((message) => {
       if (message.type === MSG_BG_STATUS) {
         setStatus(message.payload);
-        if (message.payload.state === 'finished') {
+        if (message.payload.state === 'finished' || message.payload.state === 'observing') {
             setIsAiLoading(false);
             setAiResult(null);
         }
@@ -372,7 +373,7 @@ const App = () => {
 
   const togglePause = () => safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
   const clearConversation = () => {
-    if (window.confirm("Limpar histórico desta conversa?")) {
+    if (window.confirm("Limpar histórico e resumo desta conversa?")) {
       safeSendMessage({ type: POPUP_CLEAR_CONVERSATION, payload: { conversationKey: status.conversationKey }});
     }
   };
@@ -406,6 +407,15 @@ const App = () => {
       }
   }
 
+  const handleRefresh = () => {
+    if (status.conversationKey && !isAiLoading) {
+      if (window.confirm("Isso irá limpar os dados atuais e recarregar a conversa do zero. Deseja continuar?")) {
+        setIsAiLoading(true);
+        safeSendMessage({ type: OVERLAY_REFRESH_CONVERSATION, payload: { conversationKey: status.conversationKey } });
+      }
+    }
+  };
+
   const renderAiResult = () => {
     if (!aiResult) return null;
     switch (aiResult.kind) {
@@ -435,9 +445,7 @@ const App = () => {
           <span>Echo</span>
         </div>
         <div className="header-buttons">
-            <button onClick={handleFinishConversation} className="echo-overlay-button finish-button" title="Encerrar e Gerar Resumo" disabled={isFinished || status.state === 'idle' || isAiLoading}>
-                ✓
-            </button>
+            <button onClick={handleRefresh} className="echo-overlay-button" title="Recarregar conversa" disabled={isAiLoading || status.state === 'idle'}>↻</button>
             <button onClick={toggleMinimize} className="echo-overlay-button" title="Minimizar">-</button>
         </div>
       </div>
@@ -470,9 +478,14 @@ const App = () => {
         </div>
       </div>
       <div className="echo-overlay-footer">
-        <button onClick={toggleTheme} className="echo-overlay-button" style={{ fontSize: "14px" }}>
-          {isDarkMode ? "☀️" : "🌙"}
-        </button>
+        <div className="echo-overlay-footer-left">
+            <button onClick={toggleTheme} className="echo-overlay-button" style={{ fontSize: "14px" }}>
+              {isDarkMode ? "☀️" : "🌙"}
+            </button>
+            <button onClick={handleFinishConversation} className="echo-overlay-button finish-button" title="Encerrar e Gerar Resumo" disabled={isFinished || status.state === 'idle' || isAiLoading}>
+                Finalizar
+            </button>
+        </div>
         <a href="#" onClick={openOptions}>⚙ Configurações</a>
       </div>
       <div className="echo-overlay-resize-handle" onMouseDown={handleResizeMouseDown}></div>

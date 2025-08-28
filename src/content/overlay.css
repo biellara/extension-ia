@@ -34,9 +34,9 @@
   --accent-secondary: #79c0ff;
   --accent-bg: #223344;
   --accent-border: #388bfd;
-  --error-bg: #4d1f24;
-  --error-text: #f8d7da;
-  --error-border: #721c24;
+  --error-bg: #4a1e22;
+  --error-text: #f1b0b7;
+  --error-border: #6b2830;
   --shadow-color: rgba(0, 0, 0, 0.5);
   --scrollbar-track: #4a4a4a;
   --scrollbar-thumb: #666;
@@ -110,6 +110,13 @@
   font-weight: 600;
 }
 
+/* Container para os botões do cabeçalho */
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .echo-status-indicator {
   width: 10px;
   height: 10px;
@@ -119,6 +126,8 @@
 
 .echo-status-indicator.observing { background-color: #28a745; }
 .echo-status-indicator.paused { background-color: #ffc107; }
+.echo-status-indicator.finished { background-color: #17a2b8; }
+
 
 .echo-overlay-body {
   padding: 12px;
@@ -152,8 +161,19 @@
   cursor: pointer;
   font-size: 12px;
 }
-.echo-overlay-button:hover {
+.echo-overlay-button:hover:not(:disabled) {
   filter: brightness(0.9);
+}
+
+.echo-overlay-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.echo-overlay-button[title="Recarregar conversa"] {
+    font-weight: bold;
+    font-size: 16px;
+    padding: 2px 8px;
 }
 
 .echo-overlay-switch {
@@ -173,6 +193,42 @@
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid var(--border-primary);
+}
+
+.echo-overlay-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.echo-overlay-button.finish-button {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border-color: var(--error-border);
+  font-weight: bold;
+}
+
+.echo-overlay-button.finish-button:hover:not(:disabled) {
+  background-color: var(--error-text);
+  color: var(--error-bg);
+}
+
+.echo-overlay-button.finish-button:disabled {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border-secondary);
+}
+
+
+.dark-theme .echo-overlay-button.finish-button {
+    background-color: var(--error-bg);
+    color: var(--error-text);
+    border-color: #8b3a3a;
+}
+
+.dark-theme .echo-overlay-button.finish-button:hover:not(:disabled) {
+    background-color: #e57373;
+    color: #2d2d2d;
 }
 
 .echo-overlay-footer a {
@@ -250,6 +306,13 @@
   border-bottom: 1px solid var(--border-primary);
   padding-bottom: 6px;
 }
+
+.ai-result-section.final-summary {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-primary);
+}
+
 
 .ai-result-section h4 {
   font-size: 13px;

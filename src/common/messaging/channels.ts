@@ -13,7 +13,8 @@ export const MSG_CLEAR_ALL_DATA = 'clear_all_data';
 export const POPUP_TOGGLE_PAUSE = 'popup_toggle_pause';
 export const POPUP_CLEAR_CONVERSATION = 'popup_clear_conversation';
 export const OPTIONS_UPDATE_SETTINGS = 'options_update_settings';
-export const OVERLAY_FINISH_CONVERSATION = 'overlay_finish_conversation'; // Novo
+export const OVERLAY_FINISH_CONVERSATION = 'overlay_finish_conversation';
+export const OVERLAY_REFRESH_CONVERSATION = 'overlay_refresh_conversation';
 
 // CS -> Ação para mostrar o overlay
 export const CS_SHOW_OVERLAY = 'cs_show_overlay';
