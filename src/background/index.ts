@@ -12,6 +12,7 @@ import {
   MSG_CLEAR_ALL_DATA,
   AI_SUMMARIZE,
   AI_SUGGEST,
+  AI_FINALIZE,
   CS_INSERT_SUGGESTION,
   AI_RESULT,
   OVERLAY_FINISH_CONVERSATION,
@@ -29,6 +30,10 @@ type ClassificationData = {
   sentiment?: string;
 };
 
+type IntentData = {
+    is_technical_visit?: boolean;
+}
+
 type AppState = {
   state: 'idle' | 'observing' | 'paused' | 'finished';
   paused: boolean;
@@ -38,10 +43,26 @@ type AppState = {
   settings: AppSettings;
   classification?: ClassificationData;
   summary?: ConversationMeta['summary'];
+  intent?: IntentData; // Novo
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
+
+const detectConversationIntent = async (tabId: number, conversationKey: string) => {
+    const resultPayload = await handleAiRequest({
+        type: 'AI_DETECT_INTENT',
+        payload: { conversationKey }
+    }, tabId);
+
+    if (resultPayload?.kind === 'intent') {
+        const currentState = await getTabState(tabId);
+        currentState.intent = resultPayload.data as IntentData;
+        broadcastStatus(tabId);
+    }
+};
+
+const debouncedIntentDetection = debounce(detectConversationIntent, 8000); // Roda com menos frequência
 
 const classifyConversation = async (tabId: number, conversationKey: string) => {
   const resultPayload = await handleAiRequest({
@@ -143,6 +164,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 state.messageCount = 0;
                 state.classification = undefined;
                 state.summary = undefined;
+                state.intent = undefined;
                 broadcastStatus(tabIdNum);
             }
         });
@@ -166,6 +188,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.latestTimestamp = undefined;
         currentState.classification = undefined;
         currentState.summary = undefined;
+        currentState.intent = undefined;
         if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
         stateChanged = true;
         break;
@@ -179,7 +202,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.state = metaSnapshot.status === 'finished' ? 'finished' : 'observing';
         stateChanged = true;
         if (metaSnapshot.messageCount > 0 && metaSnapshot.status === 'active') {
-            classifyConversation(tabId, payload.conversationKey);
+            debouncedClassify(tabId, payload.conversationKey);
+            debouncedIntentDetection(tabId, payload.conversationKey);
         }
         break;
 
@@ -190,18 +214,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.latestTimestamp = metaNew.latestTimestampISO;
         stateChanged = true;
 
-        const lastMessage = payload.messages[payload.messages.length - 1];
-        if (lastMessage?.authorType === 'contact') {
-          debouncedClassify(tabId, payload.conversationKey);
-        }
+        debouncedClassify(tabId, payload.conversationKey);
+        debouncedIntentDetection(tabId, payload.conversationKey);
         break;
 
       case OVERLAY_FINISH_CONVERSATION:
         if (currentState.conversationKey) {
             const conversationKey = currentState.conversationKey;
-            const resultPayload = await handleAiRequest({ type: 'AI_SUMMARIZE', payload: { conversationKey }}, tabId);
+            const resultPayload = await handleAiRequest({ type: AI_FINALIZE, payload: { conversationKey }}, tabId);
             
-            if (resultPayload?.kind === 'summary') {
+            if (resultPayload?.kind === 'finalization') {
                 const summaryData = {
                     generatedAt: new Date().toISOString(),
                     content: resultPayload.data,
@@ -225,17 +247,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case OVERLAY_REFRESH_CONVERSATION:
         if (currentState.conversationKey) {
             const conversationKey = currentState.conversationKey;
-            await clearConversationData(conversationKey); // Limpa tudo, incluindo meta
+            await clearConversationData(conversationKey);
 
             currentState.state = 'observing';
             currentState.messageCount = 0;
             currentState.latestTimestamp = undefined;
             currentState.classification = undefined;
             currentState.summary = undefined;
+            currentState.intent = undefined;
             currentState.paused = false;
 
             if (chrome.runtime.id) {
-                // Envia uma flag para o content script saber que é uma atualização
                 chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload: { conversationKey, isRefresh: true } });
             }
             stateChanged = true;
@@ -259,6 +281,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           currentState.latestTimestamp = undefined;
           currentState.classification = undefined;
           currentState.summary = undefined;
+          currentState.intent = undefined;
           currentState.state = 'observing';
           stateChanged = true;
         }

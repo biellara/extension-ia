@@ -24,5 +24,7 @@ export const CS_INSERT_SUGGESTION = 'cs_insert_suggestion';
 export const AI_SUMMARIZE = 'AI_SUMMARIZE';
 export const AI_SUGGEST = 'AI_SUGGEST';
 export const AI_CLASSIFY = 'AI_CLASSIFY';
+export const AI_FINALIZE = 'AI_FINALIZE';
+export const AI_DETECT_INTENT = 'AI_DETECT_INTENT';
 export const AI_RESULT = 'AI_RESULT';
 export const AI_ERROR = 'AI_ERROR';

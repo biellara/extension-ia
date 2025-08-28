@@ -59,21 +59,23 @@
   opacity: 1;
   display: flex;
   flex-direction: column;
-  min-width: 280px;
-  min-height: 220px;
+  width: 360px;
+  height: 520px;
   box-sizing: border-box;
 }
 
-.echo-overlay.dragging {
-  transition: none !important;
-  cursor: grabbing;
-}
+/* Novas classes de posicionamento */
+.echo-overlay.position-top-right { top: 20px; right: 20px; }
+.echo-overlay.position-top-left { top: 20px; left: 20px; }
+.echo-overlay.position-bottom-right { bottom: 20px; right: 20px; }
+.echo-overlay.position-bottom-left { bottom: 20px; left: 20px; }
+
 
 .echo-overlay.minimized {
   width: 48px !important;
   height: 48px !important;
-  border-radius: 8px;
-  cursor: grab;
+  border-radius: 50%;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,17 +92,12 @@
 .echo-overlay-header {
   padding: 8px 12px;
   background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  cursor: grab;
+  cursor: default; /* Remove o cursor de arrastar */
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-}
-
-.echo-overlay-header:active {
-  cursor: grabbing;
 }
 
 .echo-overlay-title-wrapper {
@@ -110,7 +107,15 @@
   font-weight: 600;
 }
 
-/* Container para os botões do cabeçalho */
+.header-conversation-id {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
 .header-buttons {
     display: flex;
     align-items: center;
@@ -128,28 +133,70 @@
 .echo-status-indicator.paused { background-color: #ffc107; }
 .echo-status-indicator.finished { background-color: #17a2b8; }
 
+.nav-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-primary);
+}
+.nav-tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+.nav-tab.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+.nav-tab:hover:not(.active) {
+    background-color: var(--bg-secondary);
+}
 
 .echo-overlay-body {
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   flex: 1; 
   overflow-y: auto;
 }
 
-.echo-overlay-status-line, .echo-overlay-conversation-line {
-  font-size: 13px;
-  color: var(--text-secondary);
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    text-align: center;
 }
-
-.echo-overlay-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
-  border-top: 1px solid var(--border-primary);
-  padding-top: 10px;
+.status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background-color: var(--bg-secondary);
+    padding: 8px;
+    border-radius: 6px;
+}
+.status-item span {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.status-item strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+.status-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 8px;
 }
 
 .echo-overlay-button {
@@ -157,12 +204,16 @@
   border: 1px solid var(--border-secondary);
   color: var(--text-primary);
   border-radius: 4px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   cursor: pointer;
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease;
 }
 .echo-overlay-button:hover:not(:disabled) {
-  filter: brightness(0.9);
+  filter: brightness(0.95);
 }
 
 .echo-overlay-button:disabled {
@@ -176,23 +227,13 @@
     padding: 2px 8px;
 }
 
-.echo-overlay-switch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.echo-overlay-switch input {
-  margin: 0;
-}
-
 .echo-overlay-footer {
   padding: 8px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
 }
 
 .echo-overlay-footer-left {
@@ -202,15 +243,19 @@
 }
 
 .echo-overlay-button.finish-button {
-  background-color: var(--error-bg);
-  color: var(--error-text);
-  border-color: var(--error-border);
+  background-color: var(--accent-secondary);
+  color: white;
+  border-color: var(--accent-secondary);
   font-weight: bold;
+}
+.dark-theme .echo-overlay-button.finish-button {
+    background-color: var(--accent-primary);
+    color: var(--bg-primary);
+    border-color: var(--accent-primary);
 }
 
 .echo-overlay-button.finish-button:hover:not(:disabled) {
-  background-color: var(--error-text);
-  color: var(--error-bg);
+  filter: brightness(1.1);
 }
 
 .echo-overlay-button.finish-button:disabled {
@@ -219,37 +264,31 @@
   border-color: var(--border-secondary);
 }
 
-
-.dark-theme .echo-overlay-button.finish-button {
-    background-color: var(--error-bg);
-    color: var(--error-text);
-    border-color: #8b3a3a;
-}
-
-.dark-theme .echo-overlay-button.finish-button:hover:not(:disabled) {
-    background-color: #e57373;
-    color: #2d2d2d;
-}
-
-.echo-overlay-footer a {
+.footer-link {
   font-size: 12px;
-  color: var(--accent-primary);
+  color: var(--text-secondary);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.echo-overlay-footer a:hover {
-  text-decoration: underline;
+.footer-link:hover {
+  color: var(--text-primary);
 }
 
 .echo-overlay-ia-section {
-  border-top: 1px solid var(--border-primary);
-  margin-top: 10px;
-  padding-top: 10px;
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .echo-overlay-ia-actions {
   display: flex;
   justify-content: space-around;
-  margin-bottom: 10px;
+  gap: 8px;
 }
 
 .echo-overlay-ia-actions button {
@@ -258,18 +297,10 @@
   color: var(--accent-secondary);
   font-weight: 500;
   border-radius: 4px;
-  padding: 5px 10px;
+  padding: 8px 12px;
   cursor: pointer;
-  font-size: 12px;
-}
-
-.echo-overlay-ia-actions button:hover:not(:disabled) {
-  filter: brightness(0.9);
-}
-
-.echo-overlay-ia-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  font-size: 13px;
+  flex: 1;
 }
 
 .ai-loading, .ai-error {
@@ -310,9 +341,7 @@
 .ai-result-section.final-summary {
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid var(--border-primary);
 }
-
 
 .ai-result-section h4 {
   font-size: 13px;
@@ -434,7 +463,6 @@
   padding: 6px;
   background-color: var(--bg-secondary);
   border-radius: 4px;
-  margin-bottom: 10px;
   font-style: italic;
 }
 
@@ -444,7 +472,6 @@
   gap: 4px;
   padding: 8px 10px;
   border-radius: 4px;
-  margin-bottom: 10px;
   font-size: 13px;
   border: 1px solid;
   transition: all 0.3s ease-in-out;
@@ -502,4 +529,56 @@
   background-color: #4a1e22;
   color: #f1b0b7;
   border-color: #6b2830;
+}
+
+/* Estilos para a checklist */
+.checklist-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.checklist-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 13px;
+}
+.checklist-item strong {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.checklist-item span {
+    color: var(--text-secondary);
+}
+.checklist-item ul {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-secondary);
+}
+
+.intent-action {
+    margin-top: 10px;
+}
+
+.intent-action button {
+    width: 100%;
+    padding: 8px;
+    font-weight: bold;
+    background-color: var(--accent-secondary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.dark-theme .intent-action button {
+    background-color: var(--accent-primary);
+}
+
+.intent-action button:hover:not(:disabled) {
+    filter: brightness(1.1);
 }

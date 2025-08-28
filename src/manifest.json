@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Echo",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "author": "Gabriel Dias de Lara",
   "description": "An extension designed to assist with online customer support using AI.",
 

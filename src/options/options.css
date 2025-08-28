@@ -51,19 +51,41 @@ h2 {
   font-size: 14px;
 }
 
-.privacy-policy {
-  background-color: #f9f9f9;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 16px;
-  font-size: 14px;
-  line-height: 1.6;
+/* Estilos para o seletor de posição */
+.position-selector-container {
+    padding: 16px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
 }
-
-.privacy-policy ul {
-  padding-left: 20px;
-  margin: 10px 0 0 0;
+.position-selector-container p {
+    margin-top: 0;
+    text-align: center;
+    color: #555;
 }
+.position-map {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    width: 120px;
+    height: 80px;
+    margin: 16px auto 0;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+}
+.position-quadrant {
+    border: 1px dashed #ddd;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.position-quadrant:hover {
+    background-color: #e7f3ff;
+}
+.position-quadrant.active {
+    background-color: #007bff;
+    border: 2px solid #0056b3;
+}
+/* Fim dos estilos do seletor */
 
 .danger-zone {
   border-top: 1px solid #e0e0e0;
@@ -75,7 +97,6 @@ h2 {
   color: white;
   border-color: #dc3545;
   cursor: pointer;
-  width: 100%;
 }
 
 .danger-zone button:hover {

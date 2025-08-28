@@ -6,7 +6,9 @@ import { callGemini } from './geminiProvider';
 import { summarySchema } from './schemas/summary.schema';
 import { suggestionSchema } from './schemas/suggest.schema';
 import { classificationSchema } from './schemas/classify.schema';
-import { summarizePrompt, suggestPrompt, classifyPrompt } from './prompts';
+import { finalizationSchema } from './schemas/finalization.schema';
+import { intentSchema } from './schemas/intent.schema'; // Novo
+import { summarizePrompt, suggestPrompt, classifyPrompt, finalizePrompt, intentDetectionPrompt } from './prompts';
 
 export async function handleAiRequest(message: AiRequest, tabId: number): Promise<AiResult['payload'] | null> {
   const { type, payload } = message;
@@ -14,10 +16,12 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
 
   try {
     const settings = await getAppSettings();
-    const messages = await getLastNMessages(payload.conversationKey, settings.contextWindowSize);
+    // Para detecção de intenção, usamos uma janela menor para ser mais rápido
+    const contextSize = type === 'AI_DETECT_INTENT' ? 10 : settings.contextWindowSize;
+    const messages = await getLastNMessages(payload.conversationKey, contextSize);
 
-    if (messages.length === 0) {
-      throw new Error("Não há mensagens nesta conversa para analisar.");
+    if (messages.length < 3) { // Mínimo de 3 mensagens para ter contexto
+      return null;
     }
 
     const formattedConversation = formatConversationForPrompt(messages);
@@ -31,6 +35,16 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
         promptText = summarizePrompt;
         schema = summarySchema;
         kind = 'summary';
+        break;
+      case 'AI_FINALIZE':
+        promptText = finalizePrompt;
+        schema = finalizationSchema;
+        kind = 'finalization';
+        break;
+      case 'AI_DETECT_INTENT': // Novo
+        promptText = intentDetectionPrompt;
+        schema = intentSchema;
+        kind = 'intent';
         break;
       case 'AI_SUGGEST':
         promptText = suggestPrompt;
@@ -67,8 +81,11 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
       reason: error instanceof Error ? error.message : 'Erro desconhecido',
       details: error instanceof Error ? error.stack : undefined,
     };
-    console.error("[AI Handler] Erro:", errorPayload);
-    chrome.tabs.sendMessage(tabId, { type: 'AI_ERROR', payload: errorPayload });
+    // Não envia erro para o overlay em caso de detecção de intenção, para não poluir a tela
+    if (type !== 'AI_DETECT_INTENT') {
+        console.error("[AI Handler] Erro:", errorPayload);
+        chrome.tabs.sendMessage(tabId, { type: 'AI_ERROR', payload: errorPayload });
+    }
     return null;
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAppSettings, saveAppSettings, AppSettings } from '../common/storage/settings';
+import { getAppSettings, saveAppSettings, AppSettings, WidgetPosition } from '../common/storage/settings';
 import { safeSendMessage } from '../common/messaging/safeSend';
 import { MSG_CLEAR_ALL_DATA } from '../common/messaging/channels';
 import './options.css';
@@ -14,9 +14,11 @@ const App = () => {
 
   const handleSettingChange = (key: keyof AppSettings, value: unknown) => {
     if (!settings) return;
-    const parsedValue = (key === 'retentionDays' || key === 'messageLimit' || key === 'contextWindowSize')
-      ? parseInt(value as string, 10)
-      : value;
+    
+    let parsedValue = value;
+    if (key === 'retentionDays' || key === 'messageLimit' || key === 'contextWindowSize') {
+      parsedValue = parseInt(value as string, 10);
+    }
 
     const newSettings = { ...settings, [key]: parsedValue };
     setSettings(newSettings);
@@ -43,10 +45,24 @@ const App = () => {
       <h1>Configurações da Extensão Echo</h1>
 
       <div className="settings-section">
+        <h2>Posicionamento do Widget</h2>
+        <div className="position-selector-container">
+            <p>Escolha onde o widget deve aparecer na tela.</p>
+            <div className="position-map">
+                {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as WidgetPosition[]).map(pos => (
+                    <div 
+                        key={pos}
+                        className={`position-quadrant ${settings.widgetPosition === pos ? 'active' : ''}`}
+                        title={`Posicionar no canto ${pos.replace('-', ' ')}`}
+                        onClick={() => handleSettingChange('widgetPosition', pos)}
+                    />
+                ))}
+            </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <h2>Integração com Gemini AI</h2>
-        <p style={{ fontSize: '14px', color: '#555', marginTop: '-10px' }}>
-          A API Key é gerenciada através do arquivo <code>.env</code> do projeto.
-        </p>
         <div className="setting-item">
           <label htmlFor="contextWindowSize">Mensagens para contexto:</label>
           <select
@@ -86,19 +102,6 @@ const App = () => {
             <option value="1000">1000 mensagens</option>
             <option value="2000">2000 mensagens</option>
           </select>
-        </div>
-      </div>
-
-      <div className="privacy-section">
-        <h2>Política de Privacidade</h2>
-        <div className="privacy-policy">
-          <p><strong>As conversas ficam salvas apenas localmente no seu navegador. Nada é enviado para fora sem sua autorização explícita.</strong></p>
-          <ul>
-            <li>Todos os dados de atendimento são coletados e armazenados apenas no seu computador.</li>
-            <li>Você pode apagar conversas individuais ou todos os dados a qualquer momento.</li>
-            <li>Por padrão, mantemos os dados conforme as configurações de retenção acima.</li>
-            <li>Dados sensíveis (como CPF/telefone) não são tratados de forma especial, mas nunca saem do seu navegador.</li>
-          </ul>
         </div>
       </div>
 
