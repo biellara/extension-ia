@@ -26,6 +26,20 @@ Analise a conversa e preencha os seguintes campos:
 Sua saída deve ser um objeto JSON que siga estritamente o schema fornecido. Não invente informações.
 `;
 
+// Novo prompt para atualização em tempo real
+export const updateChecklistPrompt = `
+Você é um assistente de IA que monitora uma conversa de suporte em tempo real para preencher uma checklist.
+Analise a transcrição e preencha o máximo de campos que puder com as informações disponíveis até agora. Se uma informação ainda não foi mencionada, deixe o campo como "Aguardando informação".
+
+1.  **nome_cliente**: O nome completo do cliente.
+2.  **telefone_contato**: O número de telefone de contato do cliente.
+3.  **endereco_cliente**: O endereço do cliente.
+4.  **problema_relatado**: O problema ou solicitação do cliente.
+5.  **resolucao_proximo_passo**: A solução ou próximo passo definido.
+
+Sua saída deve ser um objeto JSON que siga estritamente o schema fornecido.
+`;
+
 export const suggestPrompt = `
 Você é um assistente de IA especialista em criar respostas para atendentes de suporte em português do Brasil. Seu objetivo é sugerir respostas claras, empáticas e eficientes.
 
@@ -41,14 +55,6 @@ Analise a transcrição da conversa fornecida e classifique-a de acordo com os s
 1.  **Motivo do Contato**: Qual a principal razão pela qual o cliente entrou em contato? (ex: Dúvida sobre fatura, Problema técnico, Cancelamento, Informação sobre produto).
 2.  **Urgência**: Qual o nível de urgência do problema do cliente? (Baixa, Média, Alta).
 3.  **Sentimento**: Qual o sentimento geral do cliente durante a conversa? (Positivo, Neutro, Negativo).
-
-Sua saída deve ser um objeto JSON que siga estritamente o schema fornecido.
-`;
-
-export const intentDetectionPrompt = `
-Você é um assistente de IA ultra-rápido para classificar o tópico principal de uma conversa de suporte.
-
-Analise as últimas mensagens da transcrição e determine se o objetivo principal é agendar ou solicitar uma **visita técnica**. Responda apenas com 'true' se for sobre visita técnica (problemas de conexão, equipamento, etc.) ou 'false' para outros assuntos (financeiro, dúvidas, etc.).
 
 Sua saída deve ser um objeto JSON que siga estritamente o schema fornecido.
 `;

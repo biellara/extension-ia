@@ -12,7 +12,6 @@ import {
   MSG_CLEAR_ALL_DATA,
   AI_SUMMARIZE,
   AI_SUGGEST,
-  AI_FINALIZE,
   CS_INSERT_SUGGESTION,
   AI_RESULT,
   OVERLAY_FINISH_CONVERSATION,
@@ -30,9 +29,13 @@ type ClassificationData = {
   sentiment?: string;
 };
 
-type IntentData = {
-    is_technical_visit?: boolean;
-}
+type ChecklistData = {
+  nome_cliente?: string;
+  telefone_contato?: string;
+  endereco_cliente?: string;
+  problema_relatado?: string;
+  resolucao_proximo_passo?: string;
+};
 
 type AppState = {
   state: 'idle' | 'observing' | 'paused' | 'finished';
@@ -43,26 +46,26 @@ type AppState = {
   settings: AppSettings;
   classification?: ClassificationData;
   summary?: ConversationMeta['summary'];
-  intent?: IntentData; // Novo
+  liveChecklist?: ChecklistData; // Novo
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
 
-const detectConversationIntent = async (tabId: number, conversationKey: string) => {
+const updateLiveChecklist = async (tabId: number, conversationKey: string) => {
     const resultPayload = await handleAiRequest({
-        type: 'AI_DETECT_INTENT',
+        type: 'AI_UPDATE_CHECKLIST',
         payload: { conversationKey }
     }, tabId);
 
-    if (resultPayload?.kind === 'intent') {
+    if (resultPayload?.kind === 'checklist') {
         const currentState = await getTabState(tabId);
-        currentState.intent = resultPayload.data as IntentData;
+        currentState.liveChecklist = resultPayload.data as ChecklistData;
         broadcastStatus(tabId);
     }
 };
 
-const debouncedIntentDetection = debounce(detectConversationIntent, 8000); // Roda com menos frequência
+const debouncedChecklistUpdate = debounce(updateLiveChecklist, 5000);
 
 const classifyConversation = async (tabId: number, conversationKey: string) => {
   const resultPayload = await handleAiRequest({
@@ -164,7 +167,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 state.messageCount = 0;
                 state.classification = undefined;
                 state.summary = undefined;
-                state.intent = undefined;
+                state.liveChecklist = undefined;
                 broadcastStatus(tabIdNum);
             }
         });
@@ -188,7 +191,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.latestTimestamp = undefined;
         currentState.classification = undefined;
         currentState.summary = undefined;
-        currentState.intent = undefined;
+        currentState.liveChecklist = undefined;
         if (chrome.runtime.id) chrome.tabs.sendMessage(tabId, { type: MSG_BG_REQUEST_SNAPSHOT, payload });
         stateChanged = true;
         break;
@@ -203,7 +206,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         stateChanged = true;
         if (metaSnapshot.messageCount > 0 && metaSnapshot.status === 'active') {
             debouncedClassify(tabId, payload.conversationKey);
-            debouncedIntentDetection(tabId, payload.conversationKey);
+            debouncedChecklistUpdate(tabId, payload.conversationKey);
         }
         break;
 
@@ -215,31 +218,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         stateChanged = true;
 
         debouncedClassify(tabId, payload.conversationKey);
-        debouncedIntentDetection(tabId, payload.conversationKey);
+        debouncedChecklistUpdate(tabId, payload.conversationKey);
         break;
 
       case OVERLAY_FINISH_CONVERSATION:
-        if (currentState.conversationKey) {
+        if (currentState.conversationKey && currentState.liveChecklist) {
             const conversationKey = currentState.conversationKey;
-            const resultPayload = await handleAiRequest({ type: AI_FINALIZE, payload: { conversationKey }}, tabId);
-            
-            if (resultPayload?.kind === 'finalization') {
-                const summaryData = {
-                    generatedAt: new Date().toISOString(),
-                    content: resultPayload.data,
-                };
-                const meta = await getConversationMeta(conversationKey);
-                if (meta) {
-                    meta.summary = summaryData;
-                    meta.status = 'finished';
-                    await saveConversationMeta(conversationKey, meta);
+            const summaryData = {
+                generatedAt: new Date().toISOString(),
+                content: currentState.liveChecklist,
+            };
+            const meta = await getConversationMeta(conversationKey);
+            if (meta) {
+                meta.summary = summaryData;
+                meta.status = 'finished';
+                await saveConversationMeta(conversationKey, meta);
 
-                    currentState.summary = summaryData;
-                    currentState.state = 'finished';
-                    stateChanged = true;
+                currentState.summary = summaryData;
+                currentState.state = 'finished';
+                stateChanged = true;
 
-                    await clearConversationData(conversationKey, { preserveMeta: true });
-                }
+                await clearConversationData(conversationKey, { preserveMeta: true });
             }
         }
         break;
@@ -254,7 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             currentState.latestTimestamp = undefined;
             currentState.classification = undefined;
             currentState.summary = undefined;
-            currentState.intent = undefined;
+            currentState.liveChecklist = undefined;
             currentState.paused = false;
 
             if (chrome.runtime.id) {
@@ -281,7 +280,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           currentState.latestTimestamp = undefined;
           currentState.classification = undefined;
           currentState.summary = undefined;
-          currentState.intent = undefined;
+          currentState.liveChecklist = undefined;
           currentState.state = 'observing';
           stateChanged = true;
         }

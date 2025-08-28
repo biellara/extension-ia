@@ -2,11 +2,11 @@
  * @file Define os tipos de dados para as requisições e respostas da IA.
  */
 
-export type AiRequestKind = 'summary' | 'suggestion' | 'classification' | 'finalization' | 'intent';
+export type AiRequestKind = 'summary' | 'suggestion' | 'classification' | 'finalization' | 'checklist';
 
 // Dados enviados do Overlay para o Background
 export interface AiRequest {
-  type: 'AI_SUMMARIZE' | 'AI_SUGGEST' | 'AI_CLASSIFY' | 'AI_FINALIZE' | 'AI_DETECT_INTENT';
+  type: 'AI_SUMMARIZE' | 'AI_SUGGEST' | 'AI_CLASSIFY' | 'AI_FINALIZE' | 'AI_UPDATE_CHECKLIST';
   payload: {
     conversationKey: string;
     n?: number; // Para janela de contexto

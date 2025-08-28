@@ -92,7 +92,7 @@
 .echo-overlay-header {
   padding: 8px 12px;
   background-color: var(--bg-secondary);
-  cursor: default; /* Remove o cursor de arrastar */
+  cursor: default;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -420,14 +420,7 @@
 .echo-overlay-body::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 .echo-overlay-resize-handle {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
-  z-index: 10;
-  opacity: 0.6;
+  display: none;
 }
 
 .echo-minimized-icon-wrapper {
@@ -495,7 +488,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: right;
-  max-width: 150px; /* Ajuste conforme necessário */
+  max-width: 150px;
 }
 
 .realtime-classification-bar.sentiment-positive {
@@ -536,6 +529,9 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    background-color: var(--bg-secondary);
+    padding: 12px;
+    border-radius: 6px;
 }
 .checklist-item {
     display: flex;
@@ -554,31 +550,34 @@
 .checklist-item span {
     color: var(--text-secondary);
 }
-.checklist-item ul {
-    margin: 0;
-    padding-left: 20px;
-    color: var(--text-secondary);
+
+.checklist-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.checklist-actions button {
+    flex: 1;
+    justify-content: center;
 }
 
-.intent-action {
-    margin-top: 10px;
-}
-
-.intent-action button {
-    width: 100%;
-    padding: 8px;
-    font-weight: bold;
-    background-color: var(--accent-secondary);
+.copy-feedback {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #28a745;
     color: white;
-    border: none;
+    padding: 8px 16px;
     border-radius: 4px;
-    cursor: pointer;
+    font-size: 14px;
+    animation: fade-in-out 2s ease-in-out;
+    z-index: 2147483647;
 }
 
-.dark-theme .intent-action button {
-    background-color: var(--accent-primary);
-}
-
-.intent-action button:hover:not(:disabled) {
-    filter: brightness(1.1);
+@keyframes fade-in-out {
+    0% { opacity: 0; transform: translate(-50%, 10px); }
+    20% { opacity: 1; transform: translate(-50%, 0); }
+    80% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, 10px); }
 }

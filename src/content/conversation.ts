@@ -5,7 +5,7 @@ import { normalizeText, onlyDigits } from "../common/utils/text";
 import { sha1 } from "../common/utils/hash";
 import { debounce } from "../common/utils/debounce";
 import { safeSendMessage, Message } from "../common/messaging/safeSend";
-import { MSG_CS_CONVERSATION_CHANGE, MSG_BG_REQUEST_SNAPSHOT, MSG_CS_SNAPSHOT_RESULT, MSG_CS_NEW_MESSAGES, CS_INSERT_SUGGESTION } from "../common/messaging/channels";
+import { MSG_CS_CONVERSATION_CHANGE, MSG_BG_REQUEST_SNAPSHOT, MSG_CS_SNAPSHOT_RESULT, MSG_CS_NEW_MESSAGES, CS_INSERT_SUGGESTION, CS_INSERT_CHECKLIST } from "../common/messaging/channels";
 
 type ConversationHeader = { protocol?: string; phone?: string; name?: string };
 type MessageData = {
@@ -15,6 +15,14 @@ type MessageData = {
   textRaw: string;
   digest: string;
 };
+type ChecklistSummaryData = {
+  nome_cliente?: string;
+  telefone_contato?: string;
+  endereco_cliente?: string;
+  problema_relatado?: string;
+  resolucao_proximo_passo?: string;
+};
+
 
 let messageObserver: MutationObserver | null = null;
 const processedDigests = new Set<string>();
@@ -40,6 +48,52 @@ function insertSuggestion(text: string): boolean {
     return true;
   }
   return false;
+}
+
+function insertChecklistIntoReport(checklist: ChecklistSummaryData): boolean {
+    const editor = document.querySelector(selectors.reportEditor) as HTMLElement | null;
+    
+    // --- DEBUGGING LOG ---
+    if (editor) {
+        console.log('[Echo] Tentando inserir no relato. Elemento encontrado:', editor);
+    } else {
+        console.error('[Echo] Tentando inserir no relato. Elemento NÃO encontrado! Verifique o seletor:', selectors.reportEditor);
+    }
+    // --- FIM DO DEBUG ---
+
+    if (editor) {
+        // Formata o texto como um único bloco de HTML com quebras de linha
+        const textAsHtml = `
+Nome do Cliente: ${checklist.nome_cliente || ''}<br>
+Telefone: ${checklist.telefone_contato || ''}<br>
+Endereço: ${checklist.endereco_cliente || ''}<br>
+Problema/Solicitação: ${checklist.problema_relatado || ''}<br>
+Resolução/Próximo Passo: ${checklist.resolucao_proximo_passo || ''}
+        `.trim();
+
+        // Foca no editor para poder executar comandos
+        editor.focus();
+
+        // Seleciona todo o conteúdo existente no editor
+        document.execCommand('selectAll', false, undefined);
+
+        // Insere o novo HTML, substituindo a seleção (todo o conteúdo)
+        document.execCommand('insertHTML', false, textAsHtml);
+        
+        // Tenta desfazer a seleção para o cursor ir para o final
+        const selection = window.getSelection();
+        if (selection) {
+            selection.collapseToEnd();
+        }
+
+        // Dispara eventos para garantir que frameworks (como React/Angular) percebam a mudança
+        editor.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+        editor.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+        
+        return true;
+    }
+    console.error('[Echo] Campo de relato do atendimento não encontrado.');
+    return false;
 }
 
 function getHeaderEl(): Element | null {
@@ -223,6 +277,13 @@ export function handleBackgroundMessages(message: Message, _sender: chrome.runti
         case CS_INSERT_SUGGESTION: {
             const payload = message.payload as { text: string };
             const success = insertSuggestion(payload.text);
+            sendResponse({ success });
+            return true;
+        }
+
+        case CS_INSERT_CHECKLIST: {
+            const payload = message.payload as { checklist: ChecklistSummaryData };
+            const success = insertChecklistIntoReport(payload.checklist);
             sendResponse({ success });
             return true;
         }

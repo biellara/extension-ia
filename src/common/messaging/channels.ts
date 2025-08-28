@@ -19,12 +19,13 @@ export const OVERLAY_REFRESH_CONVERSATION = 'overlay_refresh_conversation';
 // CS -> Ação para mostrar o overlay
 export const CS_SHOW_OVERLAY = 'cs_show_overlay';
 export const CS_INSERT_SUGGESTION = 'cs_insert_suggestion';
+export const CS_INSERT_CHECKLIST = 'cs_insert_checklist';
 
 // Mensagens relacionadas à IA
 export const AI_SUMMARIZE = 'AI_SUMMARIZE';
 export const AI_SUGGEST = 'AI_SUGGEST';
 export const AI_CLASSIFY = 'AI_CLASSIFY';
 export const AI_FINALIZE = 'AI_FINALIZE';
-export const AI_DETECT_INTENT = 'AI_DETECT_INTENT';
+export const AI_UPDATE_CHECKLIST = 'AI_UPDATE_CHECKLIST';
 export const AI_RESULT = 'AI_RESULT';
 export const AI_ERROR = 'AI_ERROR';

@@ -7,8 +7,7 @@ import { summarySchema } from './schemas/summary.schema';
 import { suggestionSchema } from './schemas/suggest.schema';
 import { classificationSchema } from './schemas/classify.schema';
 import { finalizationSchema } from './schemas/finalization.schema';
-import { intentSchema } from './schemas/intent.schema'; // Novo
-import { summarizePrompt, suggestPrompt, classifyPrompt, finalizePrompt, intentDetectionPrompt } from './prompts';
+import { summarizePrompt, suggestPrompt, classifyPrompt, finalizePrompt, updateChecklistPrompt } from './prompts';
 
 export async function handleAiRequest(message: AiRequest, tabId: number): Promise<AiResult['payload'] | null> {
   const { type, payload } = message;
@@ -16,11 +15,9 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
 
   try {
     const settings = await getAppSettings();
-    // Para detecção de intenção, usamos uma janela menor para ser mais rápido
-    const contextSize = type === 'AI_DETECT_INTENT' ? 10 : settings.contextWindowSize;
-    const messages = await getLastNMessages(payload.conversationKey, contextSize);
+    const messages = await getLastNMessages(payload.conversationKey, settings.contextWindowSize);
 
-    if (messages.length < 3) { // Mínimo de 3 mensagens para ter contexto
+    if (messages.length < 3) {
       return null;
     }
 
@@ -41,10 +38,10 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
         schema = finalizationSchema;
         kind = 'finalization';
         break;
-      case 'AI_DETECT_INTENT': // Novo
-        promptText = intentDetectionPrompt;
-        schema = intentSchema;
-        kind = 'intent';
+      case 'AI_UPDATE_CHECKLIST': // Novo
+        promptText = updateChecklistPrompt;
+        schema = finalizationSchema; // Reutiliza o mesmo schema
+        kind = 'checklist';
         break;
       case 'AI_SUGGEST':
         promptText = suggestPrompt;
@@ -81,8 +78,7 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
       reason: error instanceof Error ? error.message : 'Erro desconhecido',
       details: error instanceof Error ? error.stack : undefined,
     };
-    // Não envia erro para o overlay em caso de detecção de intenção, para não poluir a tela
-    if (type !== 'AI_DETECT_INTENT') {
+    if (type !== 'AI_UPDATE_CHECKLIST') {
         console.error("[AI Handler] Erro:", errorPayload);
         chrome.tabs.sendMessage(tabId, { type: 'AI_ERROR', payload: errorPayload });
     }

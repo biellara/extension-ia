@@ -17,6 +17,9 @@ export const selectors = {
   messageAvatar: 'div.MuiAvatar-root', // O avatar do remetente
   messageGridContainer: '.MuiGrid-container.MuiGrid-spacing-xs-1', // O contêiner que alinha avatar e texto
   
+  // Seletor para o campo de relato do atendimento
+  reportEditor: '.ql-editor.dx-htmleditor-content',
+
   chatInput: [
     'textarea[placeholder*="Escreva sua mensagem" i]',
     'textarea[aria-label*="mensagem" i]',
