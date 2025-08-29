@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   retentionDays: 7,
   messageLimit: 2000,
   anonymize: true,
-  aiModel: 'gemini-1.5-flash',
+  aiModel: 'gemini-2.0-flash',
   contextWindowSize: 50,
   widgetPosition: 'bottom-right', // Posição padrão
 };
