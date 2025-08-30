@@ -12,6 +12,8 @@ import {
   MSG_CLEAR_ALL_DATA,
   AI_SUMMARIZE,
   AI_SUGGEST,
+  AI_CLASSIFY,
+  AI_EXTRACT_DATA,
   CS_INSERT_SUGGESTION,
   AI_RESULT,
   OVERLAY_FINISH_CONVERSATION,
@@ -20,7 +22,6 @@ import {
 import { processMessageBatch, clearConversationData, getConversationMeta, saveConversationMeta } from "../common/storage/storage";
 import { getAppSettings, saveAppSettings, AppSettings } from "../common/storage/settings";
 import { handleAiRequest } from "../background/ai/aiHandlers";
-import { debounce } from "../common/utils/debounce";
 import { ConversationMeta } from "../common/types/models";
 
 type ClassificationData = {
@@ -46,41 +47,11 @@ type AppState = {
   settings: AppSettings;
   classification?: ClassificationData;
   summary?: ConversationMeta['summary'];
-  liveChecklist?: ChecklistData; // Novo
+  liveChecklist?: ChecklistData;
 };
 
 const tabStates: { [tabId: number]: AppState } = {};
 const activePorts: { [tabId: number]: chrome.runtime.Port } = {};
-
-const updateLiveChecklist = async (tabId: number, conversationKey: string) => {
-    const resultPayload = await handleAiRequest({
-        type: 'AI_UPDATE_CHECKLIST',
-        payload: { conversationKey }
-    }, tabId);
-
-    if (resultPayload?.kind === 'checklist') {
-        const currentState = await getTabState(tabId);
-        currentState.liveChecklist = resultPayload.data as ChecklistData;
-        broadcastStatus(tabId);
-    }
-};
-
-const debouncedChecklistUpdate = debounce(updateLiveChecklist, 5000);
-
-const classifyConversation = async (tabId: number, conversationKey: string) => {
-  const resultPayload = await handleAiRequest({
-    type: 'AI_CLASSIFY',
-    payload: { conversationKey }
-  }, tabId);
-
-  if (resultPayload?.kind === 'classification') {
-    const currentState = await getTabState(tabId);
-    currentState.classification = resultPayload.data as ClassificationData;
-    broadcastStatus(tabId);
-  }
-};
-
-const debouncedClassify = debounce(classifyConversation, 3000);
 
 async function getTabState(tabId: number): Promise<AppState> {
   if (!tabStates[tabId]) {
@@ -138,7 +109,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
-  if (type === AI_SUMMARIZE || type === AI_SUGGEST) {
+  if (type === AI_SUMMARIZE || type === AI_SUGGEST || type === AI_CLASSIFY || type === AI_EXTRACT_DATA) {
     const tabId = payload?.tabId || sender.tab?.id;
     if (tabId) {
         (async () => {
@@ -204,10 +175,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.summary = metaSnapshot.summary;
         currentState.state = metaSnapshot.status === 'finished' ? 'finished' : 'observing';
         stateChanged = true;
-        if (metaSnapshot.messageCount > 0 && metaSnapshot.status === 'active') {
-            debouncedClassify(tabId, payload.conversationKey);
-            debouncedChecklistUpdate(tabId, payload.conversationKey);
-        }
         break;
 
       case MSG_CS_NEW_MESSAGES:
@@ -216,29 +183,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentState.messageCount = metaNew.messageCount;
         currentState.latestTimestamp = metaNew.latestTimestampISO;
         stateChanged = true;
-
-        debouncedClassify(tabId, payload.conversationKey);
-        debouncedChecklistUpdate(tabId, payload.conversationKey);
         break;
 
       case OVERLAY_FINISH_CONVERSATION:
-        if (currentState.conversationKey && currentState.liveChecklist) {
+        if (currentState.conversationKey) {
             const conversationKey = currentState.conversationKey;
-            const summaryData = {
-                generatedAt: new Date().toISOString(),
-                content: currentState.liveChecklist,
-            };
-            const meta = await getConversationMeta(conversationKey);
-            if (meta) {
-                meta.summary = summaryData;
-                meta.status = 'finished';
-                await saveConversationMeta(conversationKey, meta);
+            const finalizationResult = await handleAiRequest({
+                type: 'AI_FINALIZE',
+                payload: { conversationKey }
+            }, tabId);
 
-                currentState.summary = summaryData;
-                currentState.state = 'finished';
-                stateChanged = true;
-
-                await clearConversationData(conversationKey, { preserveMeta: true });
+            if (finalizationResult) {
+                const summaryData = {
+                    generatedAt: new Date().toISOString(),
+                    content: finalizationResult.data,
+                };
+                const meta = await getConversationMeta(conversationKey);
+                if (meta) {
+                    meta.summary = summaryData;
+                    meta.status = 'finished';
+                    await saveConversationMeta(conversationKey, meta);
+                    currentState.summary = summaryData;
+                    currentState.state = 'finished';
+                    stateChanged = true;
+                    await clearConversationData(conversationKey, { preserveMeta: true });
+                }
             }
         }
         break;
@@ -247,7 +216,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (currentState.conversationKey) {
             const conversationKey = currentState.conversationKey;
             await clearConversationData(conversationKey);
-
             currentState.state = 'observing';
             currentState.messageCount = 0;
             currentState.latestTimestamp = undefined;

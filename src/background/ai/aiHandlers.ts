@@ -7,7 +7,7 @@ import { summarySchema } from './schemas/summary.schema';
 import { suggestionSchema } from './schemas/suggest.schema';
 import { classificationSchema } from './schemas/classify.schema';
 import { finalizationSchema } from './schemas/finalization.schema';
-import { summarizePrompt, suggestPrompt, classifyPrompt, finalizePrompt, updateChecklistPrompt } from './prompts';
+import { summarizePrompt, suggestPrompt, classifyPrompt, finalizePrompt, extractDataPrompt } from './prompts';
 
 export async function handleAiRequest(message: AiRequest, tabId: number): Promise<AiResult['payload'] | null> {
   const { type, payload } = message;
@@ -17,7 +17,8 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
     const settings = await getAppSettings();
     const messages = await getLastNMessages(payload.conversationKey, settings.contextWindowSize);
 
-    if (messages.length < 3) {
+    if (messages.length < 3 && type !== 'AI_FINALIZE') {
+      // Finalize pode rodar com menos mensagens se necessário
       return null;
     }
 
@@ -33,16 +34,6 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
         schema = summarySchema;
         kind = 'summary';
         break;
-      case 'AI_FINALIZE':
-        promptText = finalizePrompt;
-        schema = finalizationSchema;
-        kind = 'finalization';
-        break;
-      case 'AI_UPDATE_CHECKLIST': // Novo
-        promptText = updateChecklistPrompt;
-        schema = finalizationSchema; // Reutiliza o mesmo schema
-        kind = 'checklist';
-        break;
       case 'AI_SUGGEST':
         promptText = suggestPrompt;
         schema = suggestionSchema;
@@ -52,6 +43,16 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
         promptText = classifyPrompt;
         schema = classificationSchema;
         kind = 'classification';
+        break;
+      case 'AI_EXTRACT_DATA':
+        promptText = extractDataPrompt;
+        schema = finalizationSchema;
+        kind = 'checklist';
+        break;
+      case 'AI_FINALIZE':
+        promptText = finalizePrompt;
+        schema = finalizationSchema;
+        kind = 'finalization';
         break;
       default:
         throw new Error("Tipo de requisição de IA desconhecido.");
@@ -78,10 +79,8 @@ export async function handleAiRequest(message: AiRequest, tabId: number): Promis
       reason: error instanceof Error ? error.message : 'Erro desconhecido',
       details: error instanceof Error ? error.stack : undefined,
     };
-    if (type !== 'AI_UPDATE_CHECKLIST') {
-        console.error("[AI Handler] Erro:", errorPayload);
-        chrome.tabs.sendMessage(tabId, { type: 'AI_ERROR', payload: errorPayload });
-    }
+    console.error("[AI Handler] Erro:", errorPayload);
+    chrome.tabs.sendMessage(tabId, { type: 'AI_ERROR', payload: errorPayload });
     return null;
   }
 }

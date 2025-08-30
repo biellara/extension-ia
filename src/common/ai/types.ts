@@ -6,7 +6,7 @@ export type AiRequestKind = 'summary' | 'suggestion' | 'classification' | 'final
 
 // Dados enviados do Overlay para o Background
 export interface AiRequest {
-  type: 'AI_SUMMARIZE' | 'AI_SUGGEST' | 'AI_CLASSIFY' | 'AI_FINALIZE' | 'AI_UPDATE_CHECKLIST';
+  type: 'AI_SUMMARIZE' | 'AI_SUGGEST' | 'AI_CLASSIFY' | 'AI_FINALIZE' | 'AI_EXTRACT_DATA';
   payload: {
     conversationKey: string;
     n?: number; // Para janela de contexto

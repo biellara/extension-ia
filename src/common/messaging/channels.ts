@@ -26,6 +26,6 @@ export const AI_SUMMARIZE = 'AI_SUMMARIZE';
 export const AI_SUGGEST = 'AI_SUGGEST';
 export const AI_CLASSIFY = 'AI_CLASSIFY';
 export const AI_FINALIZE = 'AI_FINALIZE';
-export const AI_UPDATE_CHECKLIST = 'AI_UPDATE_CHECKLIST';
+export const AI_EXTRACT_DATA = 'AI_EXTRACT_DATA';
 export const AI_RESULT = 'AI_RESULT';
 export const AI_ERROR = 'AI_ERROR';

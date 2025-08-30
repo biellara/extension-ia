@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { getOverlayUIState, saveOverlayUIState } from "../common/storage/ui";
 import { safeSendMessage } from "../common/messaging/safeSend";
@@ -176,15 +176,12 @@ const MinimizedIcon = ({ statusState }: { statusState: string }) => (
   </div>
 );
 
-// --- Componente Spinner ---
 const Spinner = () => (
   <div className="spinner">
     <div className="double-bounce1"></div>
     <div className="double-bounce2"></div>
   </div>
 );
-
-// --- Componentes de Exibição de Resultados da IA ---
 
 type GeneralSummaryData = {
   topics?: string[];
@@ -238,44 +235,44 @@ const ChecklistDisplay = ({
   data: ChecklistSummaryData;
   title: string;
 }) => {
-  const hasData = Object.values(data).some((value) => value && value.trim() !== '');
+  const hasData = Object.values(data).some((value) => value && value.trim() !== '' && value.trim() !== 'Não informado');
 
   return (
     <div className="ai-result-section checklist-summary">
       <h3>{title}</h3>
       {!hasData ? (
-        <p className="ai-result-placeholder">Aguardando dados da checklist...</p>
+        <p className="ai-result-placeholder">Nenhum dado extraído ainda.</p>
       ) : (
         <>
           <div className="checklist-item">
             <strong>
               <Icons.User /> Nome do Cliente:
             </strong>
-            <span>{data.nome_cliente || "Aguardando..."}</span>
+            <span>{data.nome_cliente || "Não informado"}</span>
           </div>
           <div className="checklist-item">
             <strong>
               <Icons.Phone /> Telefone:
             </strong>
-            <span>{data.telefone_contato || "Aguardando..."}</span>
+            <span>{data.telefone_contato || "Não informado"}</span>
           </div>
           <div className="checklist-item">
             <strong>
               <Icons.MapPin /> Endereço:
             </strong>
-            <span>{data.endereco_cliente || "Aguardando..."}</span>
+            <span>{data.endereco_cliente || "Não informado"}</span>
           </div>
           <div className="checklist-item">
             <strong>
               <Icons.Tool /> Problema/Solicitação:
             </strong>
-            <span>{data.problema_relatado || "Aguardando..."}</span>
+            <span>{data.problema_relatado || "Não informado"}</span>
           </div>
           <div className="checklist-item">
             <strong>
               <Icons.CheckCircle /> Resolução/Próximo Passo:
             </strong>
-            <span>{data.resolucao_proximo_passo || "Aguardando..."}</span>
+            <span>{data.resolucao_proximo_passo || "Não informado"}</span>
           </div>
         </>
       )}
@@ -304,66 +301,56 @@ const FinalSummary = ({
   );
 };
 
-const LiveChecklist = ({
-  checklist,
-  onCopy,
-}: {
-  checklist?: ChecklistSummaryData;
-  onCopy: (text: string) => void;
-}) => {
-  const [insertFeedback, setInsertFeedback] = useState(false);
-
-  const hasData = checklist && Object.values(checklist).some((value) => value && value.trim() !== '');
-
-  const getChecklistAsText = () => {
-    return `
-Nome do Cliente: ${checklist?.nome_cliente || "N/A"}
-Telefone: ${checklist?.telefone_contato || "N/A"}
-Endereço: ${checklist?.endereco_cliente || "N/A"}
-Problema/Solicitação: ${checklist?.problema_relatado || "N/A"}
-Resolução/Próximo Passo: ${checklist?.resolucao_proximo_passo || "N/A"}
-        `.trim();
-  };
-
-  const handleCopy = () => {
-    onCopy(getChecklistAsText());
-  };
-
-  const handleInsert = () => {
-    if (checklist) {
-      safeSendMessage({
-        type: CS_INSERT_CHECKLIST,
-        payload: { checklist },
-      }).then((response: unknown) => {
-        const res = response as { success?: boolean }; // Adiciona a asserção de tipo
-        if (res?.success) {
-          setInsertFeedback(true);
-          setTimeout(() => setInsertFeedback(false), 2000);
-        }
-      });
-    }
-  };
-
-  return (
-    <div className="live-checklist-wrapper">
-      <ChecklistDisplay data={checklist || {}} title="📋 Checklist em Andamento" />
-      {hasData && (
+const ChecklistResult = ({
+    data,
+    onCopy,
+    onInsert,
+  }: {
+    data: unknown;
+    onCopy: (text: string) => void;
+    onInsert: (checklist: ChecklistSummaryData) => void;
+  }) => {
+    const checklistData = data as ChecklistSummaryData;
+    const [insertFeedback, setInsertFeedback] = useState(false);
+  
+    const getChecklistAsText = () => {
+      return `
+  Nome do Cliente: ${checklistData?.nome_cliente || "N/A"}
+  Telefone: ${checklistData?.telefone_contato || "N/A"}
+  Endereço: ${checklistData?.endereco_cliente || "N/A"}
+  Problema/Solicitação: ${checklistData?.problema_relatado || "N/A"}
+  Resolução/Próximo Passo: ${checklistData?.resolucao_proximo_passo || "N/A"}
+          `.trim();
+    };
+  
+    const handleCopy = () => {
+      onCopy(getChecklistAsText());
+    };
+  
+    const handleInsert = () => {
+      onInsert(checklistData);
+      setInsertFeedback(true);
+      setTimeout(() => setInsertFeedback(false), 2000);
+    };
+  
+    return (
+      <div className="live-checklist-wrapper">
+        <ChecklistDisplay data={checklistData || {}} title="📋 Dados Extraídos" />
         <div className="checklist-actions">
-          <button onClick={handleCopy} className="echo-overlay-button secondary-button">
-            Copiar
-          </button>
-          <button
-            onClick={handleInsert}
-            className="echo-overlay-button primary-button"
-            disabled={insertFeedback}
-          >
-            {insertFeedback ? "✔ Inserido" : "Inserir no Relato"}
-          </button>
+            <button onClick={handleCopy} className="echo-overlay-button secondary-button">
+                Copiar
+            </button>
+            <button
+                onClick={handleInsert}
+                className="echo-overlay-button primary-button"
+                disabled={insertFeedback}
+            >
+                {insertFeedback ? "✔ Inserido" : "Inserir no Relato"}
+            </button>
         </div>
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 type SuggestionData = {
   suggestions?: { tone: string; text: string }[];
@@ -447,53 +434,45 @@ type ClassificationData = {
   sentiment?: string;
 };
 
-const RealtimeClassification = ({
-  classification,
-}: {
-  classification?: ClassificationData;
-}) => {
-  if (!classification || !classification.reason) {
+const ClassificationResult = ({
+    data,
+  }: {
+    data: unknown;
+  }) => {
+    const classification = data as ClassificationData;
+    const { reason, urgency, sentiment } = classification;
+  
+    const sentimentMap: Record<string, { icon: string; className: string }> = {
+      Positivo: { icon: "😊", className: "positive" },
+      Neutro: { icon: "😐", className: "neutral" },
+      Negativo: { icon: "😡", className: "negative" },
+    };
+  
+    const sentimentInfo =
+      sentiment && sentimentMap[sentiment]
+        ? sentimentMap[sentiment]
+        : { icon: "🤔", className: "unknown" };
+  
     return (
-      <div className="realtime-classification-placeholder">
-        Aguardando classificação em tempo real...
+      <div className={`ai-result-section realtime-classification-bar sentiment-${sentimentInfo.className}`}>
+        <h3>Análise de Sentimento</h3>
+        <div className="classification-item">
+          <strong>{sentimentInfo.icon} Sentimento:</strong>
+          <span>{sentiment}</span>
+        </div>
+        <div className="classification-item">
+          <strong>{urgency === "Alta" ? "⚠️" : "⚡"} Urgência:</strong>
+          <span>{urgency}</span>
+        </div>
+        <div className="classification-item">
+          <strong>📝 Motivo:</strong>
+          <span className="classification-reason" title={reason}>
+            {reason}
+          </span>
+        </div>
       </div>
     );
-  }
-
-  const { reason, urgency, sentiment } = classification;
-
-  const sentimentMap: Record<string, { icon: string; className: string }> = {
-    Positivo: { icon: "😊", className: "positive" },
-    Neutro: { icon: "😐", className: "neutral" },
-    Negativo: { icon: "😡", className: "negative" },
   };
-
-  const sentimentInfo =
-    sentiment && sentimentMap[sentiment]
-      ? sentimentMap[sentiment]
-      : { icon: "🤔", className: "unknown" };
-
-  return (
-    <div
-      className={`realtime-classification-bar sentiment-${sentimentInfo.className}`}
-    >
-      <div className="classification-item">
-        <strong>{sentimentInfo.icon} Sentimento:</strong>
-        <span>{sentiment}</span>
-      </div>
-      <div className="classification-item">
-        <strong>{urgency === "Alta" ? "⚠️" : "⚡"} Urgência:</strong>
-        <span>{urgency}</span>
-      </div>
-      <div className="classification-item">
-        <strong>📝 Motivo:</strong>
-        <span className="classification-reason" title={reason}>
-          {reason}
-        </span>
-      </div>
-    </div>
-  );
-};
 
 type StatusPayload = {
   state?: "idle" | "observing" | "paused" | "finished";
@@ -502,42 +481,71 @@ type StatusPayload = {
   messageCount?: number;
   latestTimestamp?: string;
   settings: AppSettings;
-  classification?: ClassificationData;
   summary?: ConversationMeta["summary"];
-  liveChecklist?: ChecklistSummaryData;
 };
 
+const MINIMIZED_SIZE = 54;
+const EXPANDED_SIZE = { width: 380, height: 560 };
+
 const App = () => {
-  const [status, setStatus] = useState<StatusPayload | null>(null);
-  const [minimized, setMinimized] = useState(true);
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<AiResult["payload"] | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const [activeTab, setActiveTab] = useState<"overview" | "tools">("overview");
-  const [copyFeedback, setCopyFeedback] = useState(false);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("echo-theme");
-    if (savedTheme === "dark") setIsDarkMode(true);
-
-    if (!chrome?.runtime?.id) return;
-
-    getOverlayUIState().then((state) => {
-      if (chrome?.runtime?.id) {
-        setMinimized(state.minimized ?? true);
-      }
+    const [status, setStatus] = useState<StatusPayload | null>(null);
+    const [minimized, setMinimized] = useState(true);
+    const [position, setPosition] = useState({ x: window.innerWidth - 84, y: window.innerHeight - 84 });
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [initialStateLoaded, setInitialStateLoaded] = useState(false);
+  
+    const overlayRef = useRef<HTMLDivElement>(null);
+    const dragInfo = useRef({
+      isDragging: false,
+      hasDragged: false,
+      startMouse: { x: 0, y: 0 },
+      offset: { x: 0, y: 0 },
     });
-  }, []);
-
-  const toggleTheme = () => {
-    const newIsDarkMode = !isDarkMode;
-    setIsDarkMode(newIsDarkMode);
-    localStorage.setItem("echo-theme", newIsDarkMode ? "dark" : "light");
-  };
+  
+    const [isAiLoading, setIsAiLoading] = useState(false);
+    const [aiResult, setAiResult] = useState<AiResult["payload"] | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
+  
+    const [activeTab, setActiveTab] = useState<"overview" | "tools">("overview");
+    const [copyFeedback, setCopyFeedback] = useState(false);
+  
+    useEffect(() => {
+      const savedTheme = localStorage.getItem("echo-theme");
+      if (savedTheme === "dark") setIsDarkMode(true);
+  
+      if (!chrome?.runtime?.id) return;
+  
+      getOverlayUIState().then((state) => {
+        setMinimized(state.minimized ?? true);
+        if (state.hasBeenMoved && state.pos) {
+          setPosition(state.pos);
+        }
+        setInitialStateLoaded(true);
+      });
+    }, []);
+  
+    useEffect(() => {
+        if (!initialStateLoaded || !status?.settings.widgetPosition) return;
+    
+        getOverlayUIState().then((state) => {
+            if (state.hasBeenMoved && state.pos) {
+                setPosition(state.pos);
+            } else {
+                const width = minimized ? MINIMIZED_SIZE : EXPANDED_SIZE.width;
+                const height = minimized ? MINIMIZED_SIZE : EXPANDED_SIZE.height;
+                const positionClass = status.settings.widgetPosition;
+                
+                let x = window.innerWidth - width - 20;
+                let y = window.innerHeight - height - 20;
+                
+                if (positionClass === 'top-right') { y = 20; }
+                else if (positionClass === 'top-left') { x = 20; y = 20; }
+                else if (positionClass === 'bottom-left') { x = 20; }
+                
+                setPosition({ x, y });
+            }
+        });
+    }, [initialStateLoaded, status?.settings.widgetPosition, minimized]);
 
   useEffect(() => {
     if (!chrome?.runtime?.id) return;
@@ -546,16 +554,13 @@ const App = () => {
     port.onMessage.addListener((message) => {
       if (message.type === MSG_BG_STATUS) {
         setStatus(message.payload);
-        // Only clear AI results/loading when conversation changes significantly
-        // or specifically finished/idle.
         if (
           message.payload.state === "finished" ||
           message.payload.state === "idle"
         ) {
           setIsAiLoading(false);
-          setAiResult(null); // Clear AI result when conversation finishes or goes idle
+          setAiResult(null); 
           setAiError(null);
-          // If finished, default to overview or ensure final summary is visible
           if (message.payload.state === "finished") {
              setActiveTab("tools");
           } else if (message.payload.state === "idle") {
@@ -577,26 +582,16 @@ const App = () => {
           setMinimized(false);
           saveOverlayUIState({ minimized: false });
         } else if (msg.type === AI_RESULT) {
-          const payload = msg.payload as {
-            conversationKey?: string;
-            kind?: string;
-          };
+          const payload = msg.payload as { conversationKey?: string };
           if (
             payload &&
-            status && // Ensure status is not null before accessing conversationKey
+            status &&
             payload.conversationKey === status.conversationKey
           ) {
-            // Classification and checklist are handled directly by status update
-            // Other AI results (summary, suggestion) update aiResult state
-            if (
-              payload.kind !== "classification" &&
-              payload.kind !== "checklist"
-            ) {
-              setAiResult(msg.payload as AiResult["payload"]);
-              setActiveTab("tools"); // Switch to tools tab when a new AI result (summary/suggestion) arrives
-            }
+            setAiResult(msg.payload as AiResult["payload"]);
             setAiError(null);
             setIsAiLoading(false);
+            setActiveTab("tools");
           }
         } else if (msg.type === AI_ERROR) {
           const payload = msg.payload as {
@@ -605,13 +600,13 @@ const App = () => {
           };
           if (
             payload &&
-            status && // Ensure status is not null before accessing conversationKey
+            status &&
             payload.conversationKey === status.conversationKey
           ) {
             setAiError(payload.reason ?? "Erro desconhecido da IA.");
             setAiResult(null);
             setIsAiLoading(false);
-            setActiveTab("tools"); // Show error in tools tab
+            setActiveTab("tools");
           }
         }
       }
@@ -624,7 +619,105 @@ const App = () => {
         chrome.runtime.onMessage.removeListener(messageListener);
       }
     };
-  }, [status?.conversationKey, status?.state, status]); // Depend on conversationKey and state to react to changes
+  }, [status]);
+
+  const handleToggleMinimize = useCallback(() => {
+    setMinimized(prevMinimized => {
+        const newMinimized = !prevMinimized;
+
+        setPosition(prevPos => {
+            const currentWidth = prevMinimized ? MINIMIZED_SIZE : EXPANDED_SIZE.width;
+            const currentHeight = prevMinimized ? MINIMIZED_SIZE : EXPANDED_SIZE.height;
+            const newWidth = newMinimized ? MINIMIZED_SIZE : EXPANDED_SIZE.width;
+            const newHeight = newMinimized ? MINIMIZED_SIZE : EXPANDED_SIZE.height;
+
+            const newPos = {
+                x: prevPos.x + (currentWidth - newWidth) / 2,
+                y: prevPos.y + (currentHeight - newHeight) / 2,
+            };
+            
+            saveOverlayUIState({ minimized: newMinimized, pos: newPos, hasBeenMoved: true });
+            return newPos;
+        });
+
+        return newMinimized;
+    });
+}, []);
+  
+const handleMouseMove = useCallback((e: MouseEvent) => {
+  if (!dragInfo.current.isDragging) return;
+  e.preventDefault();
+
+  const dx = e.clientX - dragInfo.current.startMouse.x;
+  const dy = e.clientY - dragInfo.current.startMouse.y;
+  
+  if (!dragInfo.current.hasDragged && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+    dragInfo.current.hasDragged = true;
+    if (overlayRef.current) {
+        overlayRef.current.classList.add('dragging');
+    }
+  }
+
+  const newX = dragInfo.current.offset.x + dx;
+  const newY = dragInfo.current.offset.y + dy;
+
+  if (overlayRef.current) {
+      overlayRef.current.style.transform = `translate(${newX - position.x}px, ${newY - position.y}px)`;
+  }
+}, [position.x, position.y]);
+
+const handleMouseUp = useCallback((e: MouseEvent) => {
+  document.removeEventListener('mousemove', handleMouseMove);
+  document.removeEventListener('mouseup', handleMouseUp);
+  
+  if (overlayRef.current) {
+      overlayRef.current.classList.remove('dragging');
+      overlayRef.current.style.transform = '';
+  }
+
+  if (dragInfo.current.hasDragged) {
+      const dx = e.clientX - dragInfo.current.startMouse.x;
+      const dy = e.clientY - dragInfo.current.startMouse.y;
+      const newPos = {
+          x: dragInfo.current.offset.x + dx,
+          y: dragInfo.current.offset.y + dy,
+      };
+      setPosition(newPos);
+      saveOverlayUIState({ pos: newPos, hasBeenMoved: true });
+  } else if(dragInfo.current.isDragging) {
+      handleToggleMinimize();
+  }
+
+  dragInfo.current.isDragging = false;
+  dragInfo.current.hasDragged = false;
+}, [handleMouseMove, handleToggleMinimize]);
+
+
+const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    
+    const isDragHandle = minimized || (!minimized && target.closest('.echo-overlay-header'));
+    if (!isDragHandle || target.closest('button, a')) {
+        return;
+    }
+    
+    e.preventDefault();
+    dragInfo.current = {
+        isDragging: true,
+        hasDragged: false,
+        startMouse: { x: e.clientX, y: e.clientY },
+        offset: { ...position },
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+}, [minimized, position, handleMouseMove, handleMouseUp]);
+
+
+  const toggleTheme = () => {
+    const newIsDarkMode = !isDarkMode;
+    setIsDarkMode(newIsDarkMode);
+    localStorage.setItem("echo-theme", newIsDarkMode ? "dark" : "light");
+  };
 
   const togglePause = () => safeSendMessage({ type: POPUP_TOGGLE_PAUSE });
   const clearConversation = () => {
@@ -633,7 +726,7 @@ const App = () => {
         type: POPUP_CLEAR_CONVERSATION,
         payload: { conversationKey: status?.conversationKey },
       });
-      setAiResult(null); // Clear AI results immediately after clearing conversation
+      setAiResult(null);
       setAiError(null);
       setIsAiLoading(false);
     }
@@ -642,17 +735,13 @@ const App = () => {
     e.preventDefault();
     safeSendMessage({ type: MSG_OPEN_OPTIONS_PAGE });
   };
-  const toggleMinimize = () => {
-    const newMinimized = !minimized;
-    setMinimized(newMinimized);
-    saveOverlayUIState({ minimized: newMinimized });
-  };
-  const handleAiAction = (type: "AI_SUMMARIZE" | "AI_SUGGEST") => {
+
+  const handleAiAction = (type: "AI_SUMMARIZE" | "AI_SUGGEST" | "AI_CLASSIFY" | "AI_EXTRACT_DATA") => {
     if (!status?.conversationKey) return;
     setIsAiLoading(true);
-    setAiResult(null); // Clear previous AI result when requesting a new one
+    setAiResult(null);
     setAiError(null);
-    setActiveTab("tools"); // Always switch to tools tab when an AI action is triggered
+    setActiveTab("tools");
     safeSendMessage({
       type,
       payload: { conversationKey: status.conversationKey },
@@ -681,7 +770,7 @@ const App = () => {
         )
       ) {
         setIsAiLoading(true);
-        setAiResult(null); // Clear previous AI result when refreshing
+        setAiResult(null);
         setAiError(null);
         safeSendMessage({
           type: OVERLAY_REFRESH_CONVERSATION,
@@ -697,6 +786,13 @@ const App = () => {
     setTimeout(() => setCopyFeedback(false), 2000);
   };
 
+  const handleInsertChecklist = (checklist: ChecklistSummaryData) => {
+    safeSendMessage({
+        type: CS_INSERT_CHECKLIST,
+        payload: { checklist },
+    });
+  };
+
   const renderAiResult = () => {
     if (!aiResult) return null;
     switch (aiResult.kind) {
@@ -709,13 +805,17 @@ const App = () => {
             conversationKey={status?.conversationKey}
           />
         );
+      case "classification":
+        return <ClassificationResult data={aiResult.data} />;
+      case "checklist":
+        return <ChecklistResult data={aiResult.data} onCopy={handleCopy} onInsert={handleInsertChecklist} />;
       default:
         return null;
     }
   };
 
   if (!status) {
-    return null; // ou um loader inicial simples
+    return null; 
   }
 
   const isFinished = status.state === "finished";
@@ -725,13 +825,19 @@ const App = () => {
         minute: "2-digit",
       })
     : "-";
-  const overlayClassName = `echo-overlay ${isDarkMode ? "dark-theme" : ""} ${minimized ? "minimized" : ""} position-${status.settings.widgetPosition}`;
+    const overlayClassName = `echo-overlay ${isDarkMode ? "dark-theme" : ""} ${minimized ? "minimized" : ""}`;
+    const overlayStyle = {
+      left: `${position.x}px`,
+      top: `${position.y}px`,
+    };
 
   if (minimized) {
     return (
       <div
+        ref={overlayRef}
         className={overlayClassName}
-        onClick={toggleMinimize}
+        style={overlayStyle}
+        onMouseDown={handleMouseDown}
         title="Echo AI - Clique para expandir"
       >
         <MinimizedIcon statusState={status.state || "idle"} />
@@ -740,8 +846,8 @@ const App = () => {
   }
 
   return (
-    <div ref={overlayRef} className={overlayClassName}>
-      <div className="echo-overlay-header">
+    <div ref={overlayRef} className={overlayClassName} style={overlayStyle}>
+      <div className="echo-overlay-header" onMouseDown={handleMouseDown}>
         <div className="echo-overlay-title-wrapper">
           <Icons.EchoLogo />
           <span>Echo AI</span>
@@ -759,7 +865,7 @@ const App = () => {
             ↻
           </button>
           <button
-            onClick={toggleMinimize}
+            onClick={handleToggleMinimize}
             className="echo-overlay-button icon-button"
             title="Minimizar"
           >
@@ -786,7 +892,6 @@ const App = () => {
       <div className="echo-overlay-body">
         {activeTab === "overview" && (
           <>
-            <RealtimeClassification classification={status.classification} />
             <div className="status-grid">
               <div className="status-item">
                 <span>Status Atual</span>
@@ -826,23 +931,11 @@ const App = () => {
 
         {activeTab === "tools" && (
           <div className="echo-overlay-ia-section">
-            <div className="echo-overlay-ia-actions">
-              <button
-                onClick={() => handleAiAction("AI_SUMMARIZE")}
-                disabled={isAiLoading || status.state === "idle" || status.state === "finished"}
-                className="ai-action-button"
-                title="Gerar um resumo rápido da conversa até o momento"
-              >
-                Gerar Resumo Rápido
-              </button>
-              <button
-                onClick={() => handleAiAction("AI_SUGGEST")}
-                disabled={isAiLoading || status.state === "idle" || status.state === "finished"}
-                className="ai-action-button"
-                title="Obter sugestões de resposta com base na conversa"
-              >
-                Obter Sugestão
-              </button>
+            <div className="echo-overlay-ia-actions-grid">
+              <button onClick={() => handleAiAction("AI_SUMMARIZE")} disabled={isAiLoading || isFinished} className="ai-action-button">Gerar Resumo</button>
+              <button onClick={() => handleAiAction("AI_SUGGEST")} disabled={isAiLoading || isFinished} className="ai-action-button">Sugerir Resposta</button>
+              <button onClick={() => handleAiAction("AI_CLASSIFY")} disabled={isAiLoading || isFinished} className="ai-action-button">Analisar Sentimento</button>
+              <button onClick={() => handleAiAction("AI_EXTRACT_DATA")} disabled={isAiLoading || isFinished} className="ai-action-button">Extrair Dados</button>
             </div>
 
             {isAiLoading && (
@@ -853,21 +946,13 @@ const App = () => {
             )}
             {aiError && <div className="ai-error">Erro: {aiError}</div>}
             
-            {/* Live Checklist always visible if conversation is ongoing or finished but has data */}
-            {!isFinished && (
-              <LiveChecklist
-                checklist={status.liveChecklist}
-                onCopy={handleCopy}
-              />
-            )}
-            
             {aiResult && !isFinished && (
               <div className="ai-result">{renderAiResult()}</div>
             )}
             
             {isFinished && <FinalSummary summary={status.summary} />}
             
-            {!isAiLoading && !aiError && !aiResult && !isFinished && !status.liveChecklist && (
+            {!isAiLoading && !aiError && !aiResult && !isFinished && (
                 <div className="ai-placeholder">
                     <Icons.EchoLogo />
                     <p>Use as ferramentas de IA acima para otimizar seu atendimento.</p>
@@ -899,7 +984,7 @@ const App = () => {
           Finalizar Atendimento
         </button>
       </div>
-      {copyFeedback && <div className="copy-feedback">Checklist copiada!</div>}
+      {copyFeedback && <div className="copy-feedback">Copiado para a área de transferência!</div>}
     </div>
   );
 };
@@ -917,3 +1002,4 @@ try {
 }
 
 export default App;
+

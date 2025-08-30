@@ -26,10 +26,10 @@ Analise a conversa e preencha os seguintes campos:
 Sua saída deve ser um objeto JSON que siga estritamente o schema fornecido. Não invente informações.
 `;
 
-// Novo prompt para atualização em tempo real
-export const updateChecklistPrompt = `
-Você é um assistente de IA que monitora uma conversa de suporte em tempo real para preencher uma checklist.
-Analise a transcrição e preencha o máximo de campos que puder com as informações disponíveis até agora. Se uma informação ainda não foi mencionada, deixe o campo como "Aguardando informação".
+// Novo prompt para extração de dados manual
+export const extractDataPrompt = `
+Você é um assistente de IA que analisa uma conversa de suporte para preencher uma checklist.
+Analise a transcrição e preencha o máximo de campos que puder com as informações disponíveis até agora. Se uma informação ainda não foi mencionada, deixe o campo como "Não informado".
 
 1.  **nome_cliente**: O nome completo do cliente.
 2.  **telefone_contato**: O número de telefone de contato do cliente.
