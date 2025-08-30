@@ -1,38 +1,31 @@
-/* --- DEFINIÇÃO DE VARIÁVEIS DE TEMA --- */
+
 :root {
-  /* Tema Claro (Padrão) */
-  --bg-primary: hsl(0, 0%, 100%); /* White */
-  --bg-secondary: hsl(210, 15%, 97%); /* Light grey for sections/cards */
-  --bg-tertiary: hsl(210, 10%, 93%); /* Even lighter grey, for button backgrounds */
-  --text-primary: hsl(210, 10%, 20%); /* Dark grey for main text */
-  --text-secondary: hsl(210, 5%, 45%); /* Medium grey for secondary text/labels */
-  --text-accent: hsl(205, 100%, 30%); /* Darker accent for active states/icons */
-  --border-primary: hsl(210, 10%, 88%); /* Light grey border */
-  --border-secondary: hsl(210, 10%, 80%); /* Medium grey border */
-  --accent-primary: hsl(205, 100%, 40%); /* Main blue accent */
-  --accent-secondary: hsl(205, 100%, 30%); /* Darker blue for active states/buttons */
-  --accent-bg: hsl(205, 100%, 95%); /* Very light blue for accent backgrounds */
-  --accent-border: hsl(205, 80%, 80%); /* Lighter blue for accent borders */
-
-  /* Status Colors */
-  --status-observing: #28a745; /* Green */
-  --status-paused: #ffc107; /* Yellow */
-  --status-finished: #17a2b8; /* Cyan */
-  --status-idle: #ccc; /* Grey */
-
-  /* Semantic Colors */
+  /* ... (suas variáveis de tema permanecem inalteradas) ... */
+  --bg-primary: hsl(0, 0%, 100%);
+  --bg-secondary: hsl(210, 15%, 97%);
+  --bg-tertiary: hsl(210, 10%, 93%);
+  --text-primary: hsl(210, 10%, 20%);
+  --text-secondary: hsl(210, 5%, 45%);
+  --text-accent: hsl(205, 100%, 30%);
+  --border-primary: hsl(210, 10%, 88%);
+  --border-secondary: hsl(210, 10%, 80%);
+  --accent-primary: hsl(205, 100%, 40%);
+  --accent-secondary: hsl(205, 100%, 30%);
+  --accent-bg: hsl(205, 100%, 95%);
+  --accent-border: hsl(205, 80%, 80%);
+  --status-observing: #28a745;
+  --status-paused: #ffc107;
+  --status-finished: #17a2b8;
+  --status-idle: #ccc;
   --info-bg: hsl(205, 100%, 95%);
   --info-text: hsl(205, 100%, 30%);
   --info-border: hsl(205, 80%, 80%);
-
-  --error-bg: hsl(355, 75%, 90%); /* Light red */
-  --error-text: hsl(355, 75%, 30%); /* Dark red */
+  --error-bg: hsl(355, 75%, 90%);
+  --error-text: hsl(355, 75%, 30%);
   --error-border: hsl(355, 75%, 80%);
-
-  --success-bg: hsl(120, 40%, 90%); /* Light green */
-  --success-text: hsl(120, 40%, 30%); /* Dark green */
+  --success-bg: hsl(120, 40%, 90%);
+  --success-text: hsl(120, 40%, 30%);
   --success-border: hsl(120, 40%, 75%);
-
   --shadow-color: rgba(0, 0, 0, 0.1);
   --shadow-hover: rgba(0, 0, 0, 0.15);
   --shadow-deep: rgba(0, 0, 0, 0.2);
@@ -42,39 +35,32 @@
 }
 
 .dark-theme {
-  /* Tema Escuro */
-  --bg-primary: hsl(210, 10%, 18%); /* Dark grey */
-  --bg-secondary: hsl(210, 10%, 25%); /* Slightly lighter dark grey */
-  --bg-tertiary: hsl(210, 10%, 32%); /* Even lighter dark grey */
-  --text-primary: hsl(210, 20%, 90%); /* Light grey for main text */
-  --text-secondary: hsl(210, 10%, 70%); /* Medium light grey for secondary text/labels */
-  --text-accent: hsl(205, 100%, 70%); /* Lighter accent for active states/icons */
-  --border-primary: hsl(210, 10%, 40%); /* Medium dark grey border */
-  --border-secondary: hsl(210, 10%, 48%); /* Lighter medium dark grey border */
-  --accent-primary: hsl(205, 100%, 60%); /* Main blue accent */
-  --accent-secondary: hsl(205, 100%, 70%); /* Lighter blue for active states/buttons */
-  --accent-bg: hsl(205, 100%, 15%); /* Very dark blue for accent backgrounds */
-  --accent-border: hsl(205, 100%, 30%); /* Darker blue for accent borders */
-
-  /* Status Colors (Keep same hue, adjust lightness) */
+  /* ... (seu tema escuro permanece inalterado) ... */
+  --bg-primary: hsl(210, 10%, 18%);
+  --bg-secondary: hsl(210, 10%, 25%);
+  --bg-tertiary: hsl(210, 10%, 32%);
+  --text-primary: hsl(210, 20%, 90%);
+  --text-secondary: hsl(210, 10%, 70%);
+  --text-accent: hsl(205, 100%, 70%);
+  --border-primary: hsl(210, 10%, 40%);
+  --border-secondary: hsl(210, 10%, 48%);
+  --accent-primary: hsl(205, 100%, 60%);
+  --accent-secondary: hsl(205, 100%, 70%);
+  --accent-bg: hsl(205, 100%, 15%);
+  --accent-border: hsl(205, 100%, 30%);
   --status-observing: hsl(120, 70%, 40%);
   --status-paused: hsl(45, 100%, 50%);
   --status-finished: hsl(190, 80%, 40%);
   --status-idle: hsl(210, 10%, 50%);
-
-  /* Semantic Colors */
   --info-bg: hsl(205, 100%, 15%);
   --info-text: hsl(205, 100%, 70%);
   --info-border: hsl(205, 100%, 30%);
-
   --error-bg: hsl(355, 75%, 20%);
   --error-text: hsl(355, 75%, 70%);
   --error-border: hsl(355, 75%, 40%);
-
   --success-bg: hsl(120, 40%, 20%);
   --success-text: hsl(120, 40%, 70%);
   --success-border: hsl(120, 40%, 40%);
-
   --shadow-color: rgba(0, 0, 0, 0.3);
   --shadow-hover: rgba(0, 0, 0, 0.4);
   --shadow-deep: rgba(0, 0, 0, 0.5);
@@ -90,29 +76,32 @@
   position: fixed;
   z-index: 2147483646;
   background-color: var(--bg-primary);
-  border-radius: 12px; /* Mais arredondado */
-  box-shadow: 0 6px 20px var(--shadow-color); /* Sombra mais suave e proeminente */
+  border-radius: 12px;
+  box-shadow: 0 6px 20px var(--shadow-color);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: var(--text-primary);
-  font-size: 13px; /* Tamanho base de fonte levemente reduzido */
-  transition: width 0.2s ease-in-out, height 0.2s ease-in-out, border-radius 0.2s ease-in-out;
+  font-size: 13px;
+  /* MUDANÇA: A transição de width/height foi removida para um redimensionamento mais suave */
+  transition: border-radius 0.2s ease-in-out;
   opacity: 1;
   display: flex;
   flex-direction: column;
-  width: 380px; /* Largura um pouco maior */
-  height: 560px; /* Altura um pouco maior */
+  /* MUDANÇA: Width e Height agora são definidos via style no React, não mais fixos aqui */
   box-sizing: border-box;
-  overflow: hidden; /* Garante que o conteúdo respeite o border-radius */
+  overflow: hidden;
+}
+
+.echo-overlay.dragging, .echo-overlay.resizing {
+  transition: none !important;
+  user-select: none;
 }
 
 .echo-overlay.dragging {
-  transition: none !important;
-  user-select: none;
-  cursor: grabbing !important;
+    cursor: grabbing !important;
 }
 
 .echo-overlay.minimized {
-  width: 54px !important; /* Tamanho do ícone minimizado */
+  width: 54px !important;
   height: 54px !important;
   border-radius: 50%;
   cursor: grab;
@@ -120,7 +109,7 @@
   align-items: center;
   justify-content: center;
   padding: 0; 
-  box-shadow: 0 2px 8px var(--shadow-color); /* Sombra para o estado minimizado */
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .echo-overlay.minimized:hover {
@@ -822,4 +811,70 @@
     transform: scale(1.0);
     -webkit-transform: scale(1.0);
   }
+}
+
+/* --- NOVO: Resize Handles --- */
+.resize-handle {
+  position: absolute;
+  z-index: 10; /* Garante que fiquem acima do conteúdo */
+}
+
+/* Cantos */
+.resize-handle.se {
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+.resize-handle.sw {
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+.resize-handle.ne {
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+.resize-handle.nw {
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+/* Bordas */
+.resize-handle.n {
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+.resize-handle.s {
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+.resize-handle.e {
+  top: 12px;
+  right: 0;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
+}
+.resize-handle.w {
+  top: 12px;
+  left: 0;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
 }
